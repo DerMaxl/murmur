@@ -1,0 +1,78 @@
+import SwiftUI
+
+/// Recently Deleted: recordings that were deleted (manually or by the auto-delete
+/// retention) but not yet purged. Each can be restored or removed permanently; they're
+/// purged automatically 30 days after deletion.
+struct RecentlyDeletedView: View {
+    @Bindable var model: AppModel
+    @Environment(\.fontScale) private var scale
+    @State private var confirmingEmpty = false
+
+    var body: some View {
+        Group {
+            if model.deletedRecordings.isEmpty {
+                ContentUnavailableView(
+                    "Nothing here",
+                    systemImage: "trash",
+                    description: Text("Deleted recordings appear here for 30 days, so you can restore them. Then they're removed for good."))
+            } else {
+                List {
+                    Section {
+                        ForEach(model.deletedRecordings) { rec in
+                            row(rec)
+                        }
+                    } footer: {
+                        Text("Items are removed permanently 30 days after deletion.")
+                            .scaledFont(11).foregroundStyle(.secondary)
+                    }
+                }
+                .listStyle(.inset)
+            }
+        }
+        .navigationTitle("Recently Deleted")
+        .toolbar {
+            if !model.deletedRecordings.isEmpty {
+                Button(role: .destructive) { confirmingEmpty = true } label: {
+                    Label("Empty", systemImage: "trash.slash")
+                }
+            }
+        }
+        .confirmationDialog("Permanently delete everything in Recently Deleted?",
+                            isPresented: $confirmingEmpty, titleVisibility: .visible) {
+            Button("Delete All Permanently", role: .destructive) { model.emptyTrash() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes \(model.deletedRecordings.count) recording(s) and their files. This can't be undone.")
+        }
+    }
+
+    private func row(_ rec: Recording) -> some View {
+        HStack(alignment: .top, spacing: 10 * scale) {
+            Image(systemName: rec.sourceSymbol)
+                .scaledFont(14).foregroundStyle(.secondary)
+                .frame(width: 22 * scale, height: 22 * scale)
+                .padding(.top, 2)
+            VStack(alignment: .leading, spacing: 2 * scale) {
+                Text(rec.displayName).scaledFont(13).lineLimit(1)
+                Text(rec.previewLine).scaledFont(12).foregroundStyle(.secondary).lineLimit(2)
+                if let when = rec.deletedAt {
+                    Text("Deleted \(when, format: .relative(presentation: .named))")
+                        .scaledFont(11).foregroundStyle(.tertiary)
+                }
+            }
+            Spacer(minLength: 0)
+            HStack(spacing: 6 * scale) {
+                Button("Restore") { model.restore(rec.id) }
+                    .buttonStyle(.borderless)
+                Button {
+                    model.deletePermanently(rec.id)
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.borderless)
+                .help("Delete permanently")
+            }
+        }
+        .padding(.vertical, 3)
+    }
+}
