@@ -11,7 +11,7 @@
 
   <br>
 
-  <img src="design/screenshots/history.png" width="840" alt="Murmur's history window with a transcript open">
+  <img src="design/screenshots/meeting.png" width="840" alt="Murmur showing a meeting transcribed into a speaker-labelled conversation">
 </div>
 
 ---
@@ -21,12 +21,6 @@
 Murmur turns speech into text entirely on your Mac. Hold a key and talk, and what you say is typed at your cursor in whatever app you are using. It can also record meetings into clean, speaker-labelled transcripts and transcribe audio files you drop in. Keep it in the menu bar, the Dock, or both; a full window holds your history and settings.
 
 ## Screenshots
-
-Meetings are transcribed into a speaker-labelled, chronological conversation:
-
-<div align="center">
-  <img src="design/screenshots/meeting.png" width="840" alt="A meeting transcript with speaker labels">
-</div>
 
 Everything runs on-device, and the essentials sit in one settings panel:
 
