@@ -32,17 +32,15 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.4.2</string>
+	<string>0.4.3</string>
 	<key>CFBundleVersion</key>
-	<string>6</string>
+	<string>7</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>Murmur captures system audio so it can transcribe meetings and media.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Murmur records your microphone so it can transcribe what you say.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Murmur transcribes recorded audio into text on your device.</string>
 	<key>SUAutomaticallyUpdate</key>
 	<true/>
 	<key>SUEnableAutomaticChecks</key>

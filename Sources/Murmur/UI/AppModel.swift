@@ -70,6 +70,11 @@ final class AppModel {
     var dictationMode = Settings.dictationMode {
         didSet { guard !refreshing, dictationMode != oldValue else { return }; coordinator.setDictationMode(dictationMode) }
     }
+    /// Chosen microphone UID ("" = system default). Mirrored to Settings; the recorder
+    /// resolves it to a device at record time.
+    var preferredInputDeviceUID = Settings.preferredInputDeviceUID ?? "" {
+        didSet { guard !refreshing, preferredInputDeviceUID != oldValue else { return }; Settings.preferredInputDeviceUID = preferredInputDeviceUID.isEmpty ? nil : preferredInputDeviceUID }
+    }
     var launchAtLogin = LoginItem.isEnabled {
         didSet { guard !refreshing else { return }; LoginItem.setEnabled(launchAtLogin) }
     }
@@ -115,6 +120,8 @@ final class AppModel {
         if dictationShortcut != Settings.dictationShortcut { dictationShortcut = Settings.dictationShortcut }
         if meetingShortcut != Settings.meetingShortcut { meetingShortcut = Settings.meetingShortcut }
         if dictationMode != Settings.dictationMode { dictationMode = Settings.dictationMode }
+        let preferredMic = Settings.preferredInputDeviceUID ?? ""
+        if preferredInputDeviceUID != preferredMic { preferredInputDeviceUID = preferredMic }
         if launchAtLogin != LoginItem.isEnabled { launchAtLogin = LoginItem.isEnabled }
         if appVisibility != Settings.appVisibility { appVisibility = Settings.appVisibility }
         if autoCopyToClipboard != Settings.autoCopyToClipboard { autoCopyToClipboard = Settings.autoCopyToClipboard }
@@ -141,6 +148,16 @@ final class AppModel {
 
     func resetDictationShortcut() { dictationShortcut = .fnHold }
     func resetMeetingShortcut() { meetingShortcut = .optCmdE }
+
+    // MARK: Microphones
+
+    /// Input devices currently available, for the settings mic picker. Refreshed when
+    /// the Settings pane appears (devices come and go as mics are plugged in/out).
+    var inputDevices: [CrashSafeRecorder.InputDevice] = []
+
+    func refreshInputDevices() {
+        inputDevices = CrashSafeRecorder.availableInputDevices()
+    }
 
     // MARK: Storage
 

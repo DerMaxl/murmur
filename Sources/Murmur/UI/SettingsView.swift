@@ -37,6 +37,23 @@ struct SettingsView: View {
             }
 
             Section {
+                Picker("Microphone", selection: $model.preferredInputDeviceUID) {
+                    Text("System default").tag("")
+                    ForEach(model.inputDevices) { Text($0.name).tag($0.uid) }
+                    // Keep a previously chosen device visible even when it's currently
+                    // unplugged, so the selection never appears blank.
+                    if !model.preferredInputDeviceUID.isEmpty,
+                       !model.inputDevices.contains(where: { $0.uid == model.preferredInputDeviceUID }) {
+                        Text("Selected microphone (unavailable)").tag(model.preferredInputDeviceUID)
+                    }
+                }
+            } header: {
+                Text("Microphone")
+            } footer: {
+                Text("Which microphone dictation and meetings record from. “System default” follows your Mac's current input. On Bluetooth headphones, meetings keep using the built-in mic automatically unless you choose a specific one here.")
+            }
+
+            Section {
                 hotkeyRow("Key to dictate", $model.dictationShortcut) { model.resetDictationShortcut() }
                 hotkeyRow("Key to record a meeting", $model.meetingShortcut) { model.resetMeetingShortcut() }
             } header: {
@@ -93,7 +110,7 @@ struct SettingsView: View {
         // font-scale form controls, so bump their control size in steps to keep pace.
         .font(.system(size: 13 * scale))
         .controlSize(scale >= 1.45 ? .extraLarge : (scale >= 1.15 ? .large : .regular))
-        .task { model.refreshStorage() }
+        .task { model.refreshStorage(); model.refreshInputDevices() }
     }
 
     @ViewBuilder

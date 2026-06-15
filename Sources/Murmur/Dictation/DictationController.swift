@@ -1,3 +1,4 @@
+import AVFoundation
 import AppKit
 import ApplicationServices
 
@@ -249,6 +250,9 @@ final class DictationController {
 
     private func startCapture(into newPhase: Phase) {
         if let canStart, !canStart() { return }   // e.g. a voice memo is recording
+        guard ensureMicrophoneAccess() else { return }   // prompt on first use; bail if denied
+        // Record from the user's chosen mic (settings), or the system default when unset.
+        recorder.inputDeviceID = CrashSafeRecorder.preferredInputDevice()
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("murmur-dictation-\(UUID().uuidString).caf")
         do {
@@ -335,6 +339,37 @@ final class DictationController {
     }
 
     // MARK: Permission
+
+    /// Microphone gate for dictation, mirroring meeting capture. Returns true when we
+    /// can record now; otherwise it triggers the system prompt (first use) or points the
+    /// user to Settings (previously denied) and returns false, so we never "record"
+    /// silence the user thinks was captured. On a first-use prompt the recording is
+    /// skipped; the next press, after granting, works.
+    private func ensureMicrophoneAccess() -> Bool {
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            return true
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .audio) { _ in }
+            return false
+        default:
+            presentMicrophoneDenied()
+            return false
+        }
+    }
+
+    private func presentMicrophoneDenied() {
+        let alert = NSAlert()
+        alert.messageText = "Microphone access needed"
+        alert.informativeText = "To dictate, enable Murmur under System Settings → "
+            + "Privacy & Security → Microphone, then try again."
+        alert.addButton(withTitle: "Open Settings")
+        alert.addButton(withTitle: "Cancel")
+        if alert.runModal() == .alertFirstButtonReturn,
+           let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
+            NSWorkspace.shared.open(url)
+        }
+    }
 
     private static func accessibilityTrusted(prompt: Bool) -> Bool {
         // Value of the kAXTrustedCheckOptionPrompt constant. Referenced by literal to

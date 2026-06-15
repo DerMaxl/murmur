@@ -141,6 +141,17 @@ enum Settings {
         }
     }
 
+    /// The microphone to record from (its stable Core Audio UID), for dictation and
+    /// meetings. nil / empty = follow the system default input. Stored by UID rather
+    /// than the ephemeral device id so the choice survives reconnects and reboots.
+    static var preferredInputDeviceUID: String? {
+        get {
+            let value = UserDefaults.standard.string(forKey: "preferredInputDeviceUID")
+            return (value?.isEmpty == false) ? value : nil
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "preferredInputDeviceUID") }
+    }
+
     /// How the trigger gesture is interpreted. Default hold-to-talk (predictable;
     /// accidental taps won't start a recording).
     static var dictationMode: DictationMode {

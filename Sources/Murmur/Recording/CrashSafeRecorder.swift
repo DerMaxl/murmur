@@ -61,16 +61,23 @@ final class CrashSafeRecorder {
             do { try input.setVoiceProcessingEnabled(true) }
             catch { Log.error("Voice processing unavailable: \(error.localizedDescription)") }
         }
-        // Pin the input node to the chosen device (an explicit override such as the
-        // built-in mic, otherwise the current default input), so we record the mic the
-        // user is actually using - not a stale one.
-        let device = inputDeviceID ?? Self.defaultInputDevice
-        Self.bindInputDevice(input, to: device)
+        // A freshly created AVAudioEngine already binds its input node to the *current*
+        // default input device, so we only override when a specific device is requested
+        // (e.g. forcing the built-in mic for a meeting on Bluetooth headphones).
+        // Explicitly re-binding to the default via the audio unit is not just redundant:
+        // with some device configurations - notably a Bluetooth output device active - it
+        // stops the input tap from delivering any buffers, so the recording is silent.
+        // Skip it on the common path, and even for an override skip it when it already
+        // matches the default.
+        if let override = inputDeviceID, override != Self.defaultInputDevice {
+            Self.bindInputDevice(input, to: override)
+        }
         let inputFormat = input.outputFormat(forBus: 0)
         guard inputFormat.sampleRate > 0 else {
             throw RecorderError.engineFailed("No microphone input available")
         }
-        Log.info("Recording input: \(device.flatMap(Self.deviceName) ?? "default"), "
+        let boundDevice = inputDeviceID ?? Self.defaultInputDevice
+        Log.info("Recording input: \(boundDevice.flatMap(Self.deviceName) ?? "default"), "
                  + "\(Int(inputFormat.sampleRate)) Hz \(inputFormat.channelCount) ch")
 
         let target = Self.transcriptionFormat
@@ -201,6 +208,61 @@ final class CrashSafeRecorder {
         guard status == noErr else { return nil }
         let value = name as String
         return value.isEmpty ? nil : value
+    }
+
+    // MARK: Microphone picker
+
+    /// One selectable input device for the settings mic picker. Identified by its
+    /// stable `uid` (the ephemeral `AudioDeviceID` changes across reconnects/reboots).
+    struct InputDevice: Identifiable, Sendable, Hashable {
+        let id: AudioDeviceID
+        let uid: String
+        let name: String
+    }
+
+    /// Every input-capable device currently present, for the mic picker.
+    static func availableInputDevices() -> [InputDevice] {
+        allDevices().compactMap { id in
+            guard hasInputStreams(id), let uid = deviceUID(id) else { return nil }
+            return InputDevice(id: id, uid: uid, name: deviceName(id) ?? "Unknown microphone")
+        }
+    }
+
+    /// A device's persistent UID (stable across reconnects/reboots), or nil.
+    static func deviceUID(_ device: AudioDeviceID) -> String? {
+        var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyDeviceUID,
+                                                 mScope: kAudioObjectPropertyScopeGlobal,
+                                                 mElement: kAudioObjectPropertyElementMain)
+        var uid: CFString = "" as CFString
+        var size = UInt32(MemoryLayout<CFString>.size)
+        let status = withUnsafeMutablePointer(to: &uid) {
+            AudioObjectGetPropertyData(device, &address, 0, nil, &size, $0)
+        }
+        guard status == noErr else { return nil }
+        let value = uid as String
+        return value.isEmpty ? nil : value
+    }
+
+    /// Resolve a saved device UID back to a live device id, or nil if it's no longer
+    /// present (e.g. the mic was unplugged), so callers fall back to the default input.
+    static func device(forUID uid: String) -> AudioDeviceID? {
+        var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyTranslateUIDToDevice,
+                                                 mScope: kAudioObjectPropertyScopeGlobal,
+                                                 mElement: kAudioObjectPropertyElementMain)
+        var cfUID = uid as CFString
+        var device = AudioDeviceID(0)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        let status = withUnsafeMutablePointer(to: &cfUID) { uidPtr in
+            AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address,
+                                       UInt32(MemoryLayout<CFString>.size), uidPtr, &size, &device)
+        }
+        return status == noErr && device != 0 ? device : nil
+    }
+
+    /// The input device the user picked in settings, if it's set and still present;
+    /// nil means "follow the system default input".
+    static func preferredInputDevice() -> AudioDeviceID? {
+        Settings.preferredInputDeviceUID.flatMap(device(forUID:))
     }
 
     // MARK: Audio thread

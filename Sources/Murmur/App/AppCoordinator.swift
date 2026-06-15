@@ -402,7 +402,7 @@ final class AppCoordinator {
                 merged.append(turn)
             }
         }
-        return merged.map { "**\($0.speaker):** \($0.text)" }.joined(separator: "\n\n")
+        return merged.map { "\($0.speaker): \($0.text)" }.joined(separator: "\n\n")
     }
 
     // MARK: Transcription

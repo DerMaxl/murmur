@@ -30,6 +30,15 @@ final class MeetingRecorder {
     /// all audio stutter; use the built-in mic and leave the headphones in high-quality
     /// output. Decided per recording, since the audio devices can change between meetings.
     private func configureMic() {
+        // An explicit mic choice from settings always wins (it's a deliberate decision,
+        // so we don't second-guess it with the headphone heuristic below). Echo
+        // cancellation only when the output is the built-in speakers, where the mic can
+        // pick up speaker bleed.
+        if let chosen = CrashSafeRecorder.preferredInputDevice() {
+            mic.inputDeviceID = chosen
+            mic.enableVoiceProcessing = CrashSafeRecorder.outputUsesBuiltInSpeakers()
+            return
+        }
         if CrashSafeRecorder.outputUsesBuiltInSpeakers() {
             mic.enableVoiceProcessing = true
             mic.inputDeviceID = nil
