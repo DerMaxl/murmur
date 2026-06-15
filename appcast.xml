@@ -6,9 +6,15 @@
     <language>en</language>
     <item>
       <title>Version 0.4.2</title>
-      <description><![CDATA[<p>New: bulk delete in History.</p>
+      <description><![CDATA[<p>Murmur is private, on-device speech-to-text for macOS. This is the first public release.</p>
 <ul>
-<li>Filter History (for example to Dictation), then use Delete Shown to move the whole shown set to Recently Deleted in one step.</li>
+<li><b>Dictation anywhere:</b> hold a key, speak, and the text is typed at your cursor. Four interaction modes, a configurable hotkey, and your clipboard is preserved.</li>
+<li><b>Meeting capture:</b> records your mic and the system audio as two tracks, merged into one chronological, speaker-labelled transcript.</li>
+<li><b>File import:</b> drop in a voice memo or audio file to transcribe it.</li>
+<li><b>Never loses a recording:</b> audio streams to disk continuously and is recovered after a crash.</li>
+<li><b>History:</b> searchable, with bulk delete, a 30-day Recently Deleted, and auto-delete of old recordings.</li>
+<li><b>Optional on-device AI:</b> a one-line summary and stutter cleanup per transcript.</li>
+<li><b>Fully private:</b> runs entirely on your Mac (NVIDIA Parakeet on the Neural Engine); understands German, English, Dutch and more. Nothing is sent to the cloud.</li>
 </ul>]]></description>
       <pubDate>Mon, 15 Jun 2026 07:51:45 +0000</pubDate>
       <sparkle:version>6</sparkle:version>
