@@ -8,19 +8,19 @@
       <title>Version 0.4.2</title>
       <description><![CDATA[<p>Murmur is private, on-device speech-to-text for macOS. This is the first public release.</p>
 <ul>
-<li><b>Dictation anywhere:</b> hold a key, speak, and the text is typed at your cursor. Four interaction modes, a configurable hotkey, and your clipboard is preserved.</li>
-<li><b>Meeting capture:</b> records your mic and the system audio as two tracks, merged into one chronological, speaker-labelled transcript.</li>
-<li><b>File import:</b> drop in a voice memo or audio file to transcribe it.</li>
-<li><b>Never loses a recording:</b> audio streams to disk continuously and is recovered after a crash.</li>
-<li><b>History:</b> searchable, with bulk delete, a 30-day Recently Deleted, and auto-delete of old recordings.</li>
-<li><b>Optional on-device AI:</b> a one-line summary and stutter cleanup per transcript.</li>
-<li><b>Fully private:</b> runs entirely on your Mac (NVIDIA Parakeet on the Neural Engine); understands German, English, Dutch and more. Nothing is sent to the cloud.</li>
+<li>Dictation anywhere: hold a key, speak, and the text is typed at your cursor. Four interaction modes, a configurable hotkey, and your clipboard is preserved.</li>
+<li>Meeting capture: records your mic and the system audio as two tracks, merged into one chronological, speaker-labelled transcript.</li>
+<li>File import: drop in a voice memo or audio file to transcribe it.</li>
+<li>Never loses a recording: audio streams to disk continuously and is recovered after a crash.</li>
+<li>History: searchable, with bulk delete, a 30-day Recently Deleted, and auto-delete of old recordings.</li>
+<li>Optional on-device AI: a one-line summary and stutter cleanup per transcript.</li>
+<li>Fully private: runs entirely on your Mac (NVIDIA Parakeet on the Neural Engine); understands German, English, Dutch and more. Nothing is sent to the cloud.</li>
 </ul>]]></description>
-      <pubDate>Mon, 15 Jun 2026 07:51:45 +0000</pubDate>
+      <pubDate>Mon, 15 Jun 2026 08:15:07 +0000</pubDate>
       <sparkle:version>6</sparkle:version>
       <sparkle:shortVersionString>0.4.2</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.4.2/Murmur.zip" sparkle:edSignature="/YkMWfPjlNMZrv8Gs4B++ctCLk/DCwCmJBhvxUZo+GxZ6u7ftmzLamYhFj07z/DXi0PJ4CpM0v71QhQGusPtDA==" length="5257685" type="application/octet-stream" />
+      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.4.2/Murmur.zip" sparkle:edSignature="XhamnSzRszizBLM8F/N0CpVCXz743NKMohefNYy4BT2OumBLQlAL8H+fGmDBgKUb/pwSw+1NzU7h6OEg/lz/CQ==" length="5257673" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
