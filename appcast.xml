@@ -5,22 +5,17 @@
     <description>Updates for Murmur, private on-device speech-to-text for macOS.</description>
     <language>en</language>
     <item>
-      <title>Version 0.4.2</title>
-      <description><![CDATA[<p>Murmur is private, on-device speech-to-text for macOS. This is the first public release.</p>
-<ul>
-<li>Dictation anywhere: hold a key, speak, and the text is typed at your cursor. Four interaction modes, a configurable hotkey, and your clipboard is preserved.</li>
-<li>Meeting capture: records your mic and the system audio as two tracks, merged into one chronological, speaker-labelled transcript.</li>
-<li>File import: drop in a voice memo or audio file to transcribe it.</li>
-<li>Never loses a recording: audio streams to disk continuously and is recovered after a crash.</li>
-<li>History: searchable, with bulk delete, a 30-day Recently Deleted, and auto-delete of old recordings.</li>
-<li>Optional on-device AI: a one-line summary and stutter cleanup per transcript.</li>
-<li>Fully private: runs entirely on your Mac (NVIDIA Parakeet on the Neural Engine); understands German, English, Dutch and more. Nothing is sent to the cloud.</li>
+      <title>Version 0.4.3</title>
+      <description><![CDATA[<ul>
+<li>Fixed dictation and meetings not recording your microphone while Bluetooth headphones were connected.</li>
+<li>Added a microphone picker in Settings to choose which mic to record from.</li>
+<li>Meeting transcripts no longer make speaker names bold.</li>
 </ul>]]></description>
-      <pubDate>Mon, 15 Jun 2026 08:15:07 +0000</pubDate>
-      <sparkle:version>6</sparkle:version>
-      <sparkle:shortVersionString>0.4.2</sparkle:shortVersionString>
+      <pubDate>Mon, 15 Jun 2026 12:17:27 +0000</pubDate>
+      <sparkle:version>7</sparkle:version>
+      <sparkle:shortVersionString>0.4.3</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.4.2/Murmur.zip" sparkle:edSignature="XhamnSzRszizBLM8F/N0CpVCXz743NKMohefNYy4BT2OumBLQlAL8H+fGmDBgKUb/pwSw+1NzU7h6OEg/lz/CQ==" length="5257673" type="application/octet-stream" />
+      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.4.3/Murmur.zip" sparkle:edSignature="wgzNZTv0BNZ6amRAlJk5DX90FDyRH6YgN//zvtnJSx2d16ApZ7OqkD4+/Qp6SzjJ07Kj6dW05pzpedeuLWXpCA==" length="5267198" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
