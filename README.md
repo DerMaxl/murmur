@@ -8,6 +8,10 @@
   Dictate into any app, capture meetings, and transcribe audio files, all on-device. Nothing is sent to the cloud.
 
   ### [⬇ Download for macOS](https://github.com/DerMaxl/murmur/releases/latest/download/Murmur.dmg)
+
+  <br>
+
+  <img src="design/screenshots/history.png" width="840" alt="Murmur's history window with a transcript open">
 </div>
 
 ---
@@ -15,6 +19,20 @@
 ## What it does
 
 Murmur turns speech into text entirely on your Mac. Hold a key and talk, and what you say is typed at your cursor in whatever app you are using. It can also record meetings into clean, speaker-labelled transcripts and transcribe audio files you drop in. Keep it in the menu bar, the Dock, or both; a full window holds your history and settings.
+
+## Screenshots
+
+Meetings are transcribed into a speaker-labelled, chronological conversation:
+
+<div align="center">
+  <img src="design/screenshots/meeting.png" width="840" alt="A meeting transcript with speaker labels">
+</div>
+
+Everything runs on-device, and the essentials sit in one settings panel:
+
+<div align="center">
+  <img src="design/screenshots/settings.png" width="840" alt="Murmur settings: dictation, shortcuts, microphone, and updates">
+</div>
 
 ## Why I built it
 
