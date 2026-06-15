@@ -14,7 +14,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
 APP_NAME="Murmur"
-REPO="Fluitketel0/murmur"
+REPO="DerMaxl/murmur"
 ZIP="$ROOT/dist/$APP_NAME.zip"
 DMG="$ROOT/dist/$APP_NAME.dmg"
 APPCAST="$ROOT/appcast.xml"

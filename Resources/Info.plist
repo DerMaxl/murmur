@@ -48,7 +48,7 @@
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>
-	<string>https://raw.githubusercontent.com/Fluitketel0/murmur/main/appcast.xml</string>
+	<string>https://raw.githubusercontent.com/DerMaxl/murmur/main/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>uavsGkQHyVbgvJ7qEcrzXXNthzUvC/elXc0aVw+nnLU=</string>
 	<key>SUScheduledCheckInterval</key>
