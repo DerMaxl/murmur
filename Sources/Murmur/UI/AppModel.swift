@@ -149,6 +149,20 @@ final class AppModel {
     func resetDictationShortcut() { dictationShortcut = .fnHold }
     func resetMeetingShortcut() { meetingShortcut = .optCmdE }
 
+    // MARK: Software updates (wired by the app delegate to the Sparkle updater)
+
+    /// Triggers a user-initiated update check (standard Sparkle UI).
+    @ObservationIgnored var checkForUpdatesAction: (@MainActor () -> Void)?
+    /// Applies the auto-update preference to the Sparkle updater.
+    @ObservationIgnored var applyAutoUpdate: (@MainActor (Bool) -> Void)?
+
+    /// Whether updates install automatically. Default on; write-through to Sparkle.
+    var autoUpdate = true {
+        didSet { guard !refreshing else { return }; applyAutoUpdate?(autoUpdate) }
+    }
+
+    func checkForUpdates() { checkForUpdatesAction?() }
+
     // MARK: Microphones
 
     /// Input devices currently available, for the settings mic picker. Refreshed when

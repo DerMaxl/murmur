@@ -104,12 +104,7 @@ struct HistoryView: View {
             Divider()
 
             if filtered.isEmpty {
-                ContentUnavailableView(
-                    model.recordings.isEmpty ? "No recordings yet" : "No matches",
-                    systemImage: "waveform",
-                    description: Text(model.recordings.isEmpty
-                        ? "Dictate with your hotkey or record a meeting to get started."
-                        : "Try a different search or filter."))
+                emptyState
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 recordingsList
@@ -122,6 +117,27 @@ struct HistoryView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This moves everything currently shown to Recently Deleted, where it can be restored for 30 days.")
+        }
+    }
+
+    /// Empty list: nudge a brand-new user toward Settings to set up dictation (the app's
+    /// main entry point, off by default), or just note an empty search/filter result.
+    @ViewBuilder
+    private var emptyState: some View {
+        if model.recordings.isEmpty {
+            ContentUnavailableView {
+                Label("No recordings yet", systemImage: "waveform")
+            } description: {
+                Text(model.dictationEnabled
+                     ? "Hold \(model.dictationTriggerDescription) anywhere to dictate, or record a meeting. You can change your shortcuts in Settings."
+                     : "Turn on push-to-talk dictation and pick a shortcut in Settings, then hold it anywhere to start dictating.")
+            } actions: {
+                Button("Open Settings") { model.tab = .settings }
+                    .buttonStyle(.borderedProminent)
+            }
+        } else {
+            ContentUnavailableView("No matches", systemImage: "magnifyingglass",
+                                   description: Text("Try a different search or filter."))
         }
     }
 

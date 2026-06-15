@@ -40,13 +40,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         AudioDucker.restoreAfterCrashIfNeeded()   // unmute if a crash left us ducked
         Settings.migrateDefaultsIfNeeded()   // move old meeting defaults (Hyper+R, ⌘E) → ⌥⌘E
+        Settings.applyFirstRunDefaultsIfNeeded()   // enable Launch at Login once, on first run
         NSApp.mainMenu = MainMenu.make(zoomTarget: self)   // shown while the window is open
         setupMenuBar()
         coordinator.onStateChange = { [weak self] in
             self?.refreshUI()
             self?.model.sync()
+            self?.updater.installPendingUpdateIfIdle()   // apply a held update once idle
         }
         coordinator.onAudioLevel = { [weak self] level in self?.hud.push(level: level) }
+        // Let the updater defer installing while a recording is in progress.
+        updater.isRecording = { [weak self] in
+            guard let self else { return false }
+            return self.coordinator.isDictating || self.coordinator.isMeetingRecording
+        }
+        // Wire the Settings "Software updates" controls to the Sparkle updater. Set the
+        // initial toggle value before assigning applyAutoUpdate, so seeding it doesn't
+        // write straight back to Sparkle.
+        model.checkForUpdatesAction = { [weak self] in self?.updater.checkForUpdates() }
+        model.autoUpdate = updater.automaticUpdatesEnabled
+        model.applyAutoUpdate = { [weak self] on in self?.updater.automaticUpdatesEnabled = on }
         // After the menu and callbacks exist, so recovery/retry also refresh the UI.
         coordinator.recoverOrphansAtLaunch()
         coordinator.restoreDictation()   // re-arm if it was on last session

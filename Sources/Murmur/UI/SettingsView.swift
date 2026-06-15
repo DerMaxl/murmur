@@ -100,8 +100,16 @@ struct SettingsView: View {
                 Text("Audio \(StorageInfo.format(model.storage.audio)) · Transcripts \(StorageInfo.format(model.storage.text)). Dictations save only the text; meetings keep the audio too. Auto-deleted recordings move to Recently Deleted (kept 30 days) before being removed.")
             }
 
-            Section("About") {
+            Section {
                 LabeledContent("Version", value: appVersion)
+                Toggle("Keep Murmur up to date automatically", isOn: $model.autoUpdate)
+                LabeledContent("Updates") {
+                    Button("Check Now") { model.checkForUpdates() }
+                }
+            } header: {
+                Text("Software updates")
+            } footer: {
+                Text("Murmur checks once a day. With automatic updates on, a new version installs and relaunches on its own, never while you're dictating or in a meeting.")
             }
         }
         .formStyle(.grouped)

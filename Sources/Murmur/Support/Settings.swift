@@ -55,9 +55,10 @@ enum AutoDeletePeriod: String, CaseIterable, Sendable {
 /// Typed wrapper over UserDefaults for user-facing toggles. One place to define
 /// defaults so the code and the settings UI agree.
 enum Settings {
-    /// Where the app appears (menu bar / Dock / both). Default menu-bar only.
+    /// Where the app appears (menu bar / Dock / both). Default Dock & menu bar, so a
+    /// first-time user has a Dock icon to find and open the app.
     static var appVisibility: AppVisibility {
-        get { AppVisibility(rawValue: UserDefaults.standard.string(forKey: "appVisibility") ?? "") ?? .menuBarOnly }
+        get { AppVisibility(rawValue: UserDefaults.standard.string(forKey: "appVisibility") ?? "") ?? .dockAndMenuBar }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: "appVisibility") }
     }
 
@@ -152,11 +153,22 @@ enum Settings {
         set { UserDefaults.standard.set(newValue, forKey: "preferredInputDeviceUID") }
     }
 
-    /// How the trigger gesture is interpreted. Default hold-to-talk (predictable;
-    /// accidental taps won't start a recording).
+    /// How the trigger gesture is interpreted. Default hybrid: a tap starts/stops
+    /// hands-free, or hold to push-to-talk - the most flexible of the four modes.
     static var dictationMode: DictationMode {
-        get { DictationMode(rawValue: UserDefaults.standard.string(forKey: "dictationMode") ?? "") ?? .holdToTalk }
+        get { DictationMode(rawValue: UserDefaults.standard.string(forKey: "dictationMode") ?? "") ?? .hybrid }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: "dictationMode") }
+    }
+
+    /// One-time first-run defaults that need an action rather than just a stored value.
+    /// Currently: enable Launch at Login by default (Murmur is hotkey-driven, so it's
+    /// only useful while running). Gated by a flag so a user who later turns it off is
+    /// not re-enabled on the next launch.
+    static func applyFirstRunDefaultsIfNeeded() {
+        let key = "didApplyDefaultLoginItem"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        LoginItem.setEnabled(true)
     }
 
     // MARK: Shortcut persistence
