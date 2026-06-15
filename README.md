@@ -20,14 +20,6 @@
 
 Murmur turns speech into text entirely on your Mac. Hold a key and talk, and what you say is typed at your cursor in whatever app you are using. It can also record meetings into clean, speaker-labelled transcripts and transcribe audio files you drop in. Keep it in the menu bar, the Dock, or both; a full window holds your history and settings.
 
-## Screenshots
-
-Everything runs on-device, and the essentials sit in one settings panel:
-
-<div align="center">
-  <img src="design/screenshots/settings.png" width="840" alt="Murmur settings: dictation, shortcuts, microphone, and updates">
-</div>
-
 ## Why I built it
 
 I kept reaching for speech-to-text because talking is a more natural way to communicate, and to think, than typing. It quickly became how I worked with AI agents every day. But the tools I tried each fell short. One showed the words as they appeared, so if it stumbled or cut off I could carry on from where it left off, yet the transcription itself was mediocre. Another had a great model but hid the text while it formed, so a crash in the middle meant the whole message was simply gone. The polished apps that got both right sat behind paywalls that were hard to justify when the speech model is free and the app is simple to build.
