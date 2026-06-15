@@ -8,6 +8,10 @@ struct RecordingDetailView: View {
     var onDelete: () -> Void
 
     @State private var confirmingDelete = false
+    /// Briefly true right after a copy, to swap the copy icon to a confirmation check.
+    @State private var didCopy = false
+    /// Guards the check's auto-reset so a quick second copy doesn't clear it early.
+    @State private var copyToken = 0
     @Environment(\.fontScale) private var scale
 
     var body: some View {
@@ -55,10 +59,15 @@ struct RecordingDetailView: View {
     /// window toolbar: a `.toolbar` only appears on this tab, so it changed the title
     /// bar's height between tabs and shifted the traffic lights. Here it has a fixed home.
     private var actions: some View {
-        HStack(spacing: 12 * scale) {
-            Button { model.copyTranscript(rec.id) } label: { Image(systemName: "doc.on.doc") }
-                .disabled(rec.transcript?.isEmpty ?? true)
-                .help("Copy transcript")
+        HStack(spacing: 8 * scale) {
+            // On copy, swap to a green check for ~1.5s so the click visibly registers
+            // (the clipboard gives no feedback of its own).
+            Button(action: copyTranscript) {
+                Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+            }
+            .tint(didCopy ? .green : Brand.accent)
+            .disabled(rec.transcript?.isEmpty ?? true)
+            .help(didCopy ? "Copied" : "Copy transcript")
             Button { model.revealInFinder(rec.id) } label: { Image(systemName: "folder") }
                 .help("Reveal in Finder")
             if rec.transcription == .failed || rec.transcription == .none {
@@ -66,11 +75,27 @@ struct RecordingDetailView: View {
                     .help("Transcribe")
             }
             Button { confirmingDelete = true } label: { Image(systemName: "trash") }
+                .tint(.red)
                 .help("Delete")
         }
-        .buttonStyle(.borderless)
+        // Bordered buttons show the standard pressed-in highlight on click, so every
+        // action gives visible feedback. Consistent brand tint, green on a successful
+        // copy, red for the destructive delete.
+        .buttonStyle(.bordered)
+        .tint(Brand.accent)
         .scaledFont(15)
-        .foregroundStyle(.secondary)
+    }
+
+    /// Copy the transcript and flash a confirmation check on the button.
+    private func copyTranscript() {
+        model.copyTranscript(rec.id)
+        withAnimation(.easeInOut(duration: 0.15)) { didCopy = true }
+        copyToken += 1
+        let token = copyToken
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.5))
+            if copyToken == token { withAnimation { didCopy = false } }
+        }
     }
 
     private var metadata: some View {
