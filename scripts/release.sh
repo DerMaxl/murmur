@@ -49,16 +49,47 @@ echo "==> Releasing $APP_NAME $VERSION (build $BUILD, tag $TAG)"
 rm -f "$ZIP"
 ditto -c -k --keepParent "$ROOT/dist/$APP_NAME.app" "$ZIP"
 
-# 1b. Build the drag-to-Applications DMG (the human download). A staging folder holds
-# the app beside an /Applications alias, so the mounted disk shows both side by side.
+# 1b. Build the styled drag-to-Applications DMG (the human download): a background image
+# with an arrow from the app to the Applications alias plus the first-launch note, the
+# app and Applications laid out side by side. Make a read-write image, arrange the Finder
+# window with AppleScript, then compress it to the final read-only DMG.
 echo "==> Building $APP_NAME.dmg..."
+DMG_RW="$ROOT/dist/.$APP_NAME-rw.dmg"
 DMG_STAGE="$(mktemp -d)"
 cp -R "$ROOT/dist/$APP_NAME.app" "$DMG_STAGE/"
 ln -s /Applications "$DMG_STAGE/Applications"
-rm -f "$DMG"
-hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_STAGE" \
-    -ov -format UDZO "$DMG" >/dev/null
+mkdir "$DMG_STAGE/.background"
+cp "$ROOT/Resources/dmg-background.png" "$DMG_STAGE/.background/dmg-background.png"
+hdiutil detach "/Volumes/$APP_NAME" >/dev/null 2>&1 || true
+rm -f "$DMG_RW" "$DMG"
+hdiutil create -srcfolder "$DMG_STAGE" -volname "$APP_NAME" -fs HFS+ -format UDRW -ov "$DMG_RW" >/dev/null
 rm -rf "$DMG_STAGE"
+hdiutil attach "$DMG_RW" -mountpoint "/Volumes/$APP_NAME" -nobrowse >/dev/null
+osascript <<APPLESCRIPT
+tell application "Finder"
+  tell disk "$APP_NAME"
+    open
+    set current view of container window to icon view
+    set toolbar visible of container window to false
+    set statusbar visible of container window to false
+    set the bounds of container window to {300, 160, 920, 608}
+    set vo to the icon view options of container window
+    set arrangement of vo to not arranged
+    set icon size of vo to 96
+    set text size of vo to 12
+    set background picture of vo to file ".background:dmg-background.png"
+    set position of item "$APP_NAME.app" of container window to {165, 195}
+    set position of item "Applications" of container window to {455, 195}
+    update without registering applications
+    delay 1
+    close
+  end tell
+end tell
+APPLESCRIPT
+sync
+hdiutil detach "/Volumes/$APP_NAME" >/dev/null
+hdiutil convert "$DMG_RW" -format UDZO -o "$DMG" >/dev/null
+rm -f "$DMG_RW"
 
 # 2. EdDSA-sign the zip with the key in the Keychain.
 SIGN_UPDATE="$(find "$ROOT/.build/artifacts" -path "*/bin/sign_update" 2>/dev/null | head -1)"

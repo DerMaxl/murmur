@@ -47,7 +47,13 @@ Murmur uses NVIDIA Parakeet TDT v3 via [FluidAudio](https://github.com/FluidInfe
 
 [**Download the latest release**](https://github.com/DerMaxl/murmur/releases/latest), open `Murmur.dmg`, and drag Murmur onto the Applications folder. It updates itself automatically from then on.
 
-Murmur is not notarized (it is a free personal project with no paid Apple Developer account), so the first time you open it macOS warns that it is from an unidentified developer. Right-click the app and choose Open, or go to System Settings > Privacy & Security and click Open Anyway.
+Murmur is not notarized (it is a free personal project with no paid Apple Developer account), so macOS blocks the first launch with "Apple could not verify Murmur is free of malware." To open it the first time:
+
+1. Open Murmur from your Applications folder. macOS shows the warning, click Done.
+2. Open **System Settings > Privacy & Security** and scroll down to the Security section.
+3. Next to "Murmur.app was blocked", click **Open Anyway**, then confirm with Touch ID or your password.
+
+You only need to do this once. (On older macOS, right-clicking the app and choosing Open also works, but on macOS 15 the steps above are required.)
 
 The first time you enable dictation or record a meeting, macOS asks for the relevant permission (Accessibility, microphone, or system audio). Grant it and you are set.
 
