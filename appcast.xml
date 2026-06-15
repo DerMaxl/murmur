@@ -5,19 +5,16 @@
     <description>Updates for Murmur, private on-device speech-to-text for macOS.</description>
     <language>en</language>
     <item>
-      <title>Version 0.5.0</title>
+      <title>Version 0.5.1</title>
       <description><![CDATA[<ul>
-<li>Fixed dictation and meetings not recording your microphone while Bluetooth headphones were connected.</li>
-<li>Added a microphone picker in Settings to choose which mic to record from.</li>
-<li>Updates now install automatically in the background with no confirmation, and never interrupt a recording. New "Keep Murmur up to date automatically" toggle and "Check Now" button in Settings.</li>
-<li>New first-run defaults: Murmur shows in the Dock and menu bar, dictation works by tap or hold, and it launches at login.</li>
-<li>Meeting transcripts no longer make speaker names bold.</li>
+<li>Storage now lists Recently Deleted separately, so "Saved recordings" reflects only the recordings you are keeping.</li>
+<li>Clearer feedback in History: the copy, reveal, and delete buttons highlight when clicked, and Copy shows a checkmark when it is done.</li>
 </ul>]]></description>
-      <pubDate>Mon, 15 Jun 2026 12:55:17 +0000</pubDate>
-      <sparkle:version>8</sparkle:version>
-      <sparkle:shortVersionString>0.5.0</sparkle:shortVersionString>
+      <pubDate>Tue, 16 Jun 2026 18:42:49 +0000</pubDate>
+      <sparkle:version>9</sparkle:version>
+      <sparkle:shortVersionString>0.5.1</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.5.0/Murmur.zip" sparkle:edSignature="mcjA2pIPO5hz9EzH+JpzT6/aRs2uxMgz9RF1hX1pIDHeawGxcO6y9/zyzrpwYIk1PYfg6ufNYQcYYVzvUL9QCA==" length="5275157" type="application/octet-stream" />
+      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.5.1/Murmur.zip" sparkle:edSignature="29JMWjR4KI8n0CDmX+waCQUNB6zCgbNJiliy+TajJ71+LkU6mqoYst3Ic6LRqAHhVKgOMAI3Eyja0jKRYSMLBQ==" length="5282172" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
