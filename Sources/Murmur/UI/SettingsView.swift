@@ -88,6 +88,12 @@ struct SettingsView: View {
                     Text("\(model.recordings.count) · \(StorageInfo.format(model.storage.recordings))")
                         .foregroundStyle(.secondary)
                 }
+                if model.storage.trash > 0 {
+                    LabeledContent("Recently Deleted") {
+                        Text("\(model.deletedRecordings.count) · \(StorageInfo.format(model.storage.trash))")
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 LabeledContent("Where they're kept") {
                     Button("Show in Finder") { model.openRecordingsFolder() }
                 }

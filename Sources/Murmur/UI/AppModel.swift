@@ -180,8 +180,10 @@ final class AppModel {
     /// Recompute on-disk sizes when the Settings pane appears. The filesystem walk runs
     /// off the main actor so a cold cache (or a large model dir) doesn't stall the UI.
     func refreshStorage() {
+        // Snapshot the trashed folders on the main actor, then measure off it.
+        let trashed = Set(coordinator.store.deletedRecordings.map(\.folder))
         Task {
-            let sizes = await Task.detached { StorageInfo.measure() }.value
+            let sizes = await Task.detached { StorageInfo.measure(trashedFolders: trashed) }.value
             storage = sizes
         }
     }

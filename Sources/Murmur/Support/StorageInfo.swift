@@ -4,9 +4,10 @@ import Foundation
 /// (split into audio vs. transcripts) and how big the downloaded speech model is.
 enum StorageInfo {
     struct Sizes {
-        var audio: Int64 = 0     // .caf audio tracks
-        var text: Int64 = 0      // transcript.md, index.yaml, journal-adjacent text
-        var recordings: Int64 { audio + text }
+        var audio: Int64 = 0     // active .caf audio tracks
+        var text: Int64 = 0      // active transcript.md + the shared index.yaml
+        var trash: Int64 = 0     // everything still on disk for Recently Deleted items
+        var recordings: Int64 { audio + text }   // active only (excludes trash)
         var model: Int64 = 0     // the FluidAudio / Parakeet model cache
     }
 
@@ -17,22 +18,41 @@ enum StorageInfo {
             .appendingPathComponent("FluidAudio", isDirectory: true)
     }
 
-    /// Walk the recordings folder and the model cache and total their bytes.
-    static func measure() -> Sizes {
+    /// Walk the recordings folder and the model cache and total their bytes. Trashed
+    /// recordings stay on disk until purged, so their folders are attributed to `trash`
+    /// (not the active audio/text totals), keeping "Saved recordings" in step with the
+    /// active count shown beside it. `trashedFolders` is the set of Recently Deleted
+    /// recording folder names. One filesystem walk, same cost as before.
+    static func measure(trashedFolders: Set<String>) -> Sizes {
         var sizes = Sizes()
         let fm = FileManager.default
+        let rootPath = Paths.recordings.path
         if let en = fm.enumerator(at: Paths.recordings,
                                   includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey]) {
             for case let url as URL in en {
                 guard let v = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey]),
                       v.isRegularFile == true else { continue }
                 let bytes = Int64(v.fileSize ?? 0)
-                if url.pathExtension.lowercased() == "caf" { sizes.audio += bytes }
-                else { sizes.text += bytes }
+                if trashedFolders.contains(topFolder(of: url, under: rootPath)) {
+                    sizes.trash += bytes
+                } else if url.pathExtension.lowercased() == "caf" {
+                    sizes.audio += bytes
+                } else {
+                    sizes.text += bytes
+                }
             }
         }
         sizes.model = directorySize(modelDirectory)
         return sizes
+    }
+
+    /// The recording-folder name a file sits in (the first path component under
+    /// `Recordings/`), or "" for files directly in the root such as `index.yaml`.
+    private static func topFolder(of url: URL, under rootPath: String) -> String {
+        let prefix = rootPath + "/"
+        guard url.path.hasPrefix(prefix) else { return "" }
+        let rest = url.path.dropFirst(prefix.count)
+        return rest.firstIndex(of: "/").map { String(rest[..<$0]) } ?? ""
     }
 
     private static func directorySize(_ url: URL) -> Int64 {
