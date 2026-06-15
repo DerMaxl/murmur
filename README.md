@@ -18,7 +18,7 @@
 
 ## What it does
 
-Murmur turns speech into text entirely on your Mac. Hold a key and talk, and what you say is typed at your cursor in whatever app you are using. It can also record meetings into clean, speaker-labelled transcripts and transcribe audio files you drop in. Keep it in the menu bar, the Dock, or both; a full window holds your history and settings.
+Murmur turns speech into text entirely on your Mac. Hold a key and talk, and what you say is typed at your cursor in whatever app you are using. It can also record meetings into clean, speaker-labelled transcripts and transcribe audio files you drop in. Keep it in the menu bar, the Dock, or both.
 
 ## Why I built it
 
