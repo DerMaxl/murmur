@@ -7,7 +7,7 @@
 
   Dictate into any app, capture meetings, and transcribe audio files, all on-device. Nothing is sent to the cloud.
 
-  ### [⬇ Download for macOS](https://github.com/DerMaxl/murmur/releases/latest)
+  ### [⬇ Download for macOS](https://github.com/DerMaxl/murmur/releases/latest/download/Murmur.dmg)
 </div>
 
 ---
@@ -43,7 +43,7 @@ Murmur uses NVIDIA Parakeet TDT v3 via [FluidAudio](https://github.com/FluidInfe
 
 ## Download
 
-[**Download the latest release**](https://github.com/DerMaxl/murmur/releases/latest), open `Murmur.dmg`, and drag Murmur onto the Applications folder. It updates itself automatically from then on.
+[**Download Murmur**](https://github.com/DerMaxl/murmur/releases/latest/download/Murmur.dmg) (always the latest version), open the downloaded `Murmur.dmg`, and drag Murmur onto the Applications folder. It updates itself automatically from then on. The [releases page](https://github.com/DerMaxl/murmur/releases/latest) has the full notes.
 
 Murmur is not notarized (it is a free personal project with no paid Apple Developer account), so macOS blocks the first launch with "Apple could not verify Murmur is free of malware." To open it the first time:
 
