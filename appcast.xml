@@ -5,20 +5,16 @@
     <description>Updates for Murmur, private on-device speech-to-text for macOS.</description>
     <language>en</language>
     <item>
-      <title>Version 0.4.1</title>
-      <description><![CDATA[<p>Window layout polish.</p>
+      <title>Version 0.4.2</title>
+      <description><![CDATA[<p>New: bulk delete in History.</p>
 <ul>
-<li>The window's sidebar is now fixed and always visible; it can no longer be dragged off the screen or collapsed.</li>
-<li>The History list opens on your most recent recording instead of an empty pane.</li>
-<li>Long transcripts are shown in a centered, readable column instead of stretching across a maximized window.</li>
-<li>The title bar stays consistent across every tab, so switching tabs no longer makes things jump around.</li>
-<li>Per-recording actions (copy, reveal, delete) now have a fixed place in the view instead of resizing the title bar.</li>
+<li>Filter History (for example to Dictation), then use Delete Shown to move the whole shown set to Recently Deleted in one step.</li>
 </ul>]]></description>
-      <pubDate>Sat, 13 Jun 2026 19:04:45 +0000</pubDate>
-      <sparkle:version>5</sparkle:version>
-      <sparkle:shortVersionString>0.4.1</sparkle:shortVersionString>
+      <pubDate>Mon, 15 Jun 2026 07:51:45 +0000</pubDate>
+      <sparkle:version>6</sparkle:version>
+      <sparkle:shortVersionString>0.4.2</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.4.1/Murmur.zip" sparkle:edSignature="X+EeiuQippolR2iuFiC1B6cZ3LCFT0mwfk8q0PTqM6YA1djOfzv8Kr4TfdPtDWya1vVKiTzkSFteIyiaAALtCA==" length="5249330" type="application/octet-stream" />
+      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.4.2/Murmur.zip" sparkle:edSignature="/YkMWfPjlNMZrv8Gs4B++ctCLk/DCwCmJBhvxUZo+GxZ6u7ftmzLamYhFj07z/DXi0PJ4CpM0v71QhQGusPtDA==" length="5257685" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
