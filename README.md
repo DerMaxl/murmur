@@ -3,13 +3,11 @@
 
   # Murmur
 
-  **Private, native-Swift speech-to-text for macOS.**
+  **Free, private, native-Swift speech-to-text for macOS.**
 
   Dictate into any app, capture meetings, and transcribe audio files, all on-device. Nothing is sent to the cloud.
 
   ### [⬇ Download for macOS](https://github.com/DerMaxl/murmur/releases/latest)
-
-  Free. Runs entirely on your Mac. Apple Silicon, macOS 15+.
 </div>
 
 ---
