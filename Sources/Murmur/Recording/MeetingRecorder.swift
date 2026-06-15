@@ -15,13 +15,6 @@ final class MeetingRecorder {
     private(set) var micStartedAt: Date?
     private(set) var systemStartedAt: Date?
 
-    init() {
-        // Echo cancellation on the mic so it doesn't also re-record the other
-        // participants coming out of the speakers. (Headphones still give the cleanest
-        // result, but this removes most of the bleed.)
-        mic.enableVoiceProcessing = true
-    }
-
     /// Live loudness (0...1) of **your microphone**, for the HUD - so you can see you're
     /// being picked up while you talk. The system track isn't metered; mixing both would
     /// let system silence mask your voice.
@@ -29,10 +22,28 @@ final class MeetingRecorder {
         didSet { mic.onLevel = onLevel }
     }
 
+    /// Choose how to capture your mic based on where sound is going right now. On the
+    /// built-in speakers the mic hears the other participants, so cancel that echo and
+    /// record whichever mic you've selected. On headphones (Bluetooth, USB, or the jack)
+    /// there is no bleed, so skip echo cancellation - and don't record a Bluetooth
+    /// headset's own mic, which would force it into the low-quality call profile and make
+    /// all audio stutter; use the built-in mic and leave the headphones in high-quality
+    /// output. Decided per recording, since the audio devices can change between meetings.
+    private func configureMic() {
+        if CrashSafeRecorder.outputUsesBuiltInSpeakers() {
+            mic.enableVoiceProcessing = true
+            mic.inputDeviceID = nil
+        } else {
+            mic.enableVoiceProcessing = false
+            mic.inputDeviceID = CrashSafeRecorder.builtInInputDevice()
+        }
+    }
+
     /// Start both tracks. System audio is started first because it's the
     /// permission-gated one; if it fails, nothing is left running.
     func start(micURL: URL, systemURL: URL) throws {
         guard !isRecording else { return }
+        configureMic()
         try system.start(writingTo: systemURL)
         systemStartedAt = Date()
         do {

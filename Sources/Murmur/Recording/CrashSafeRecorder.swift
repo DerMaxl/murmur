@@ -39,6 +39,13 @@ final class CrashSafeRecorder {
     /// speakers. Set before `start()`. Off by default - dictation doesn't need it.
     var enableVoiceProcessing = false
 
+    /// Capture from this specific input device instead of the system default. Used for
+    /// meetings on Bluetooth/USB headphones: recording the headset's own mic forces it
+    /// into the low-quality call (HFP) profile, which makes all audio stutter, so we
+    /// record the built-in mic instead. nil = the current default input. Set before
+    /// `start()`.
+    var inputDeviceID: AudioDeviceID?
+
     /// Begin writing mic audio to `url`. Returns once capture is running.
     func start(writingTo url: URL) throws {
         lock.lock()
@@ -54,14 +61,16 @@ final class CrashSafeRecorder {
             do { try input.setVoiceProcessingEnabled(true) }
             catch { Log.error("Voice processing unavailable: \(error.localizedDescription)") }
         }
-        // Pin the input node to the current default input device explicitly, so we
-        // record the mic the user is actually using (not a stale one).
-        Self.bindDefaultInputDevice(input)
+        // Pin the input node to the chosen device (an explicit override such as the
+        // built-in mic, otherwise the current default input), so we record the mic the
+        // user is actually using - not a stale one.
+        let device = inputDeviceID ?? Self.defaultInputDevice
+        Self.bindInputDevice(input, to: device)
         let inputFormat = input.outputFormat(forBus: 0)
         guard inputFormat.sampleRate > 0 else {
             throw RecorderError.engineFailed("No microphone input available")
         }
-        Log.info("Recording input: \(Self.defaultInputDeviceName() ?? "default"), "
+        Log.info("Recording input: \(device.flatMap(Self.deviceName) ?? "default"), "
                  + "\(Int(inputFormat.sampleRate)) Hz \(inputFormat.channelCount) ch")
 
         let target = Self.transcriptionFormat
@@ -108,11 +117,10 @@ final class CrashSafeRecorder {
 
     // MARK: Input device selection
 
-    /// Point the engine's input node at the current default input device, so we always
-    /// capture from the mic the user is actually using. Best-effort: on failure we fall
-    /// back to whatever the node defaulted to.
-    private static func bindDefaultInputDevice(_ node: AVAudioInputNode) {
-        guard var deviceID = defaultInputDevice, let unit = node.audioUnit else { return }
+    /// Point the engine's input node at `device` (or leave it on the node default when
+    /// nil). Best-effort: on failure we fall back to whatever the node defaulted to.
+    private static func bindInputDevice(_ node: AVAudioInputNode, to device: AudioDeviceID?) {
+        guard var deviceID = device, let unit = node.audioUnit else { return }
         let status = AudioUnitSetProperty(unit,
                                           kAudioOutputUnitProperty_CurrentDevice,
                                           kAudioUnitScope_Global, 0,
@@ -120,8 +128,11 @@ final class CrashSafeRecorder {
         if status != noErr { Log.error("Could not set input device (status \(status))") }
     }
 
-    private static var defaultInputDevice: AudioDeviceID? {
-        var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultInputDevice,
+    static var defaultInputDevice: AudioDeviceID? { deviceID(for: kAudioHardwarePropertyDefaultInputDevice) }
+    static var defaultOutputDevice: AudioDeviceID? { deviceID(for: kAudioHardwarePropertyDefaultOutputDevice) }
+
+    private static func deviceID(for selector: AudioObjectPropertySelector) -> AudioDeviceID? {
+        var address = AudioObjectPropertyAddress(mSelector: selector,
                                                  mScope: kAudioObjectPropertyScopeGlobal,
                                                  mElement: kAudioObjectPropertyElementMain)
         var device = AudioDeviceID(0)
@@ -131,9 +142,54 @@ final class CrashSafeRecorder {
         return status == noErr && device != 0 ? device : nil
     }
 
-    /// The default input device's human-readable name (for diagnostics).
-    private static func defaultInputDeviceName() -> String? {
-        guard let device = defaultInputDevice else { return nil }
+    /// The built-in microphone, if this Mac has one. Recording a Bluetooth headset's own
+    /// mic forces it into the low-quality call (HFP) profile, which stutters all audio,
+    /// so meetings capture this instead while on headphones (see `MeetingRecorder`).
+    static func builtInInputDevice() -> AudioDeviceID? {
+        allDevices().first { hasInputStreams($0) && transportType($0) == kAudioDeviceTransportTypeBuiltIn }
+    }
+
+    /// True when the current default output is the built-in speakers, where the mic can
+    /// pick up speaker bleed (so echo cancellation is worth enabling). Headphones
+    /// (Bluetooth, USB, or the jack) play into your ears, so there is no bleed to cancel.
+    static func outputUsesBuiltInSpeakers() -> Bool {
+        guard let out = defaultOutputDevice else { return false }
+        return transportType(out) == kAudioDeviceTransportTypeBuiltIn
+    }
+
+    private static func allDevices() -> [AudioDeviceID] {
+        var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDevices,
+                                                 mScope: kAudioObjectPropertyScopeGlobal,
+                                                 mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(AudioObjectID(kAudioObjectSystemObject),
+                                             &address, 0, nil, &size) == noErr, size > 0 else { return [] }
+        var ids = [AudioDeviceID](repeating: 0, count: Int(size) / MemoryLayout<AudioDeviceID>.size)
+        let status = AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject),
+                                                &address, 0, nil, &size, &ids)
+        return status == noErr ? ids : []
+    }
+
+    private static func hasInputStreams(_ device: AudioDeviceID) -> Bool {
+        var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyStreams,
+                                                 mScope: kAudioObjectPropertyScopeInput,
+                                                 mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        return AudioObjectGetPropertyDataSize(device, &address, 0, nil, &size) == noErr && size > 0
+    }
+
+    private static func transportType(_ device: AudioDeviceID) -> UInt32? {
+        var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyTransportType,
+                                                 mScope: kAudioObjectPropertyScopeGlobal,
+                                                 mElement: kAudioObjectPropertyElementMain)
+        var value: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        let status = AudioObjectGetPropertyData(device, &address, 0, nil, &size, &value)
+        return status == noErr ? value : nil
+    }
+
+    /// A device's human-readable name (for diagnostics).
+    static func deviceName(_ device: AudioDeviceID) -> String? {
         var address = AudioObjectPropertyAddress(mSelector: kAudioObjectPropertyName,
                                                  mScope: kAudioObjectPropertyScopeGlobal,
                                                  mElement: kAudioObjectPropertyElementMain)
