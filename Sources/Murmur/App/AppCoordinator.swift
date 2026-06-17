@@ -407,27 +407,38 @@ final class AppCoordinator {
 
     // MARK: Transcription
 
+    /// A progress sink for the ASR engine: write each cumulative partial straight to
+    /// the transcript file (durable autosave) and reflect it in the UI. Shared by the
+    /// plain and the speaker-labelled transcription paths.
+    private func partialWriter(id: UUID, transcriptURL: URL) -> @Sendable (String) -> Void {
+        { partial in
+            try? partial.write(to: transcriptURL, atomically: true, encoding: .utf8)
+            Task { @MainActor in
+                self.store.setPartialTranscript(id, text: partial)
+                self.onStateChange?()
+            }
+        }
+    }
+
     /// Transcribe a finished recording. Runs off the main actor; autosaves progress
     /// to transcript.md and, on completion, the store writes the final Markdown +
     /// manifest. Safe to call again to retry a failed one.
     func transcribe(_ id: UUID, userInitiated: Bool = true) {
         guard let rec = store.recording(id), rec.transcription != .running else { return }
+        // An imported file can hold a conversation (e.g. an interview voice memo), so
+        // when speaker labelling is on, run the diarised path instead of plain ASR.
+        if rec.source == .imported, Settings.labelSpeakers {
+            transcribeImportWithSpeakers(id, userInitiated: userInitiated)
+            return
+        }
         store.setTranscriptionStatus(id, .running)
         onStateChange?()
 
         let url = rec.url
         let transcriptURL = rec.transcriptURL
         let folder = rec.folder
+        let onPartial = partialWriter(id: id, transcriptURL: transcriptURL)
         Task { [engine, self] in
-            // Called as each VAD segment finalizes: write the .txt immediately
-            // (durable autosave) and reflect progress in the UI.
-            let onPartial: @Sendable (String) -> Void = { partial in
-                try? partial.write(to: transcriptURL, atomically: true, encoding: .utf8)
-                Task { @MainActor in
-                    self.store.setPartialTranscript(id, text: partial)
-                    self.onStateChange?()
-                }
-            }
             do {
                 let transcript = try await engine.transcribe(fileAt: url, onPartial: onPartial)
                 let cleaned = TextCleaner.process(transcript.text)
@@ -453,6 +464,85 @@ final class AppCoordinator {
                     self.store.setTranscriptionStatus(id, .failed)
                     self.onStateChange?()
                     Log.error("Transcription failed for \(folder): \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    /// Transcribe an imported file with speaker labels. Mirrors `transcribe`, but
+    /// normalises the (arbitrary-format) file to 16 kHz mono, diarises it in parallel
+    /// with the ASR, and labels each segment via the same overlap logic the meeting
+    /// path uses. Falls back to a plain (cleaned + polished) transcript when only one
+    /// voice is found or diarization is unavailable, so single-speaker memos stay clean.
+    private func transcribeImportWithSpeakers(_ id: UUID, userInitiated: Bool) {
+        guard let rec = store.recording(id), rec.transcription != .running else { return }
+        store.setTranscriptionStatus(id, .running)
+        onStateChange?()
+
+        let url = rec.url
+        let transcriptURL = rec.transcriptURL
+        let folder = rec.folder
+        // Stream unlabelled partials live (durable autosave + UI), exactly as the
+        // plain path does; the labelled version replaces it once diarization lands.
+        let onPartial = partialWriter(id: id, transcriptURL: transcriptURL)
+        Task { [self] in
+            // Diarization needs 16 kHz mono, and the ASR only emits per-segment
+            // timestamps for 16 kHz mono input, so normalise once and feed both. If
+            // the source already is 16 kHz mono (or conversion fails), use it directly
+            // and let diarization degrade to the plain-text fallback below.
+            var working = url
+            var tempCopy: URL?
+            if let format = try? AudioSamples.format(url),
+               !(format.sampleRate == 16_000 && format.channels == 1) {
+                do {
+                    let copy = try AudioSamples.write16kMonoCopy(of: url)
+                    working = copy
+                    tempCopy = copy
+                } catch {
+                    // Without a 16 kHz mono copy, diarization can't run; we proceed on
+                    // the original file and fall back to a plain transcript below.
+                    Log.error("Import resample failed for \(folder); speaker labels unavailable: \(error.localizedDescription)")
+                }
+            }
+            defer { if let tempCopy { try? FileManager.default.removeItem(at: tempCopy) } }
+
+            do {
+                async let speakersTask = diarizer.diarize(fileAt: working)
+                let transcript = try await engine.transcribe(fileAt: working, onPartial: onPartial)
+                let speakers = await speakersTask
+
+                let distinct = Set(speakers.map(\.speakerId))
+                let finalText: String
+                if distinct.count > 1 {
+                    // `appName` is the single-voice fallback label; unused here because
+                    // multi-speaker turns are labelled "Speaker 1/2/…" by systemTurns.
+                    let labelled = Self.systemTurns(from: transcript, speakers: speakers,
+                                                    appName: "Speaker 1")
+                    let body = Self.interleave(labelled)
+                    finalText = body.isEmpty
+                        ? await Polisher.polishIfEnabled(TextCleaner.process(transcript.text))
+                        : body
+                } else {
+                    finalText = await Polisher.polishIfEnabled(TextCleaner.process(transcript.text))
+                }
+
+                await MainActor.run {
+                    self.store.setTranscript(id, text: finalText)
+                    self.onStateChange?()
+                    self.onTranscriptionFinished(id, userInitiated: userInitiated)
+                    Log.info("Transcribed import \(folder): \(finalText.count) chars, \(distinct.count) speaker(s)")
+                }
+                if let summary = await Summarizer.summarize(finalText) {
+                    await MainActor.run {
+                        self.store.setSummary(id, text: summary)
+                        self.onStateChange?()
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.store.setTranscriptionStatus(id, .failed)
+                    self.onStateChange?()
+                    Log.error("Import transcription failed for \(folder): \(error.localizedDescription)")
                 }
             }
         }

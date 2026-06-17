@@ -26,7 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var fillerItem = NSMenuItem(title: "Remove filler words (uh, um)",
                                              action: #selector(toggleFiller),
                                              keyEquivalent: "")
-    private lazy var speakerItem = NSMenuItem(title: "Label speakers in meetings",
+    private lazy var speakerItem = NSMenuItem(title: "Label speakers in meetings & imports",
                                               action: #selector(toggleSpeakers),
                                               keyEquivalent: "")
 

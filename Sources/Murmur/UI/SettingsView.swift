@@ -65,7 +65,7 @@ struct SettingsView: View {
             Section {
                 Toggle("Remove filler words (uh, um, äh)", isOn: $model.removeFillers)
                 Toggle("Tidy up stutters and false starts with AI", isOn: $model.polishTranscripts)
-                Toggle("Label each speaker in meetings", isOn: $model.labelSpeakers)
+                Toggle("Label each speaker in meetings and imported files", isOn: $model.labelSpeakers)
             } header: {
                 Text("How transcripts are cleaned up")
             } footer: {
