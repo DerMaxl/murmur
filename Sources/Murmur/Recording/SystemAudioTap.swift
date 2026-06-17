@@ -13,6 +13,7 @@ final class SystemAudioTap {
         case createTap(OSStatus)
         case readFormat(OSStatus)
         case makeFormat
+        case readDefaultOutput(OSStatus)
         case createAggregate(OSStatus)
         case createIOProc(OSStatus)
         case start(OSStatus)
@@ -22,6 +23,7 @@ final class SystemAudioTap {
             case .createTap(let s): return "Couldn't create the system-audio tap (\(s)). Grant audio recording access."
             case .readFormat(let s): return "Couldn't read the tap format (\(s))."
             case .makeFormat: return "Unsupported system-audio format."
+            case .readDefaultOutput(let s): return "Couldn't read the default output device (\(s))."
             case .createAggregate(let s): return "Couldn't create the aggregate device (\(s))."
             case .createIOProc(let s): return "Couldn't start the audio I/O proc (\(s))."
             case .start(let s): return "Couldn't start the system-audio device (\(s))."
@@ -130,17 +132,17 @@ final class SystemAudioTap {
         var deviceSize = UInt32(MemoryLayout<AudioDeviceID>.size)
         var device = AudioDeviceID(0)
         var status = AudioObjectGetPropertyData(system, &deviceAddr, 0, nil, &deviceSize, &device)
-        guard status == noErr else { throw TapError.createAggregate(status) }
+        guard status == noErr else { throw TapError.readDefaultOutput(status) }
 
         var uidAddr = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyDeviceUID,
                                                  mScope: kAudioObjectPropertyScopeGlobal,
                                                  mElement: kAudioObjectPropertyElementMain)
-        var uidSize = UInt32(MemoryLayout<CFString?>.size)
+        var uidSize = UInt32(MemoryLayout<CFString>.size)
         var uid: CFString = "" as CFString
         status = withUnsafeMutablePointer(to: &uid) {
             AudioObjectGetPropertyData(device, &uidAddr, 0, nil, &uidSize, $0)
         }
-        guard status == noErr else { throw TapError.createAggregate(status) }
+        guard status == noErr else { throw TapError.readDefaultOutput(status) }
         return uid as String
     }
 }

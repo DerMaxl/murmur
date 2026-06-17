@@ -75,6 +75,17 @@ struct Recording: Codable, Identifiable, Sendable, Equatable {
     }
     var transcriptURL: URL { dir.appendingPathComponent("transcript.md") }
 
+    /// Whether the audio needed to transcribe this recording exists on disk. A meeting
+    /// is recoverable if *either* track was written (a crash may leave only one), so we
+    /// must not key off `url` (the mic track) alone or we'd discard a good system track.
+    var hasTranscribableAudio: Bool {
+        let fm = FileManager.default
+        if source == .meeting {
+            return fm.fileExists(atPath: micURL.path) || fm.fileExists(atPath: systemURL.path)
+        }
+        return fm.fileExists(atPath: url.path)
+    }
+
     var displayName: String { title ?? Self.dateFormatter.string(from: startedAt) }
 
     private static let dateFormatter: DateFormatter = {
@@ -189,13 +200,13 @@ final class RecordingStore {
 
     /// Find recordings left `recording` by a previous crash. The audio is already
     /// on disk (CAF stays readable mid-write); we just finalize the bookkeeping.
-    /// An orphan with no audio file (crashed before the first buffer was written) is
-    /// dropped rather than surfaced as a permanently-broken row.
+    /// An orphan with no audio file at all (crashed before the first buffer was
+    /// written) is dropped rather than surfaced as a permanently-broken row.
     func recoverOrphans() -> [Recording] {
         var recovered: [Recording] = []
         let orphans = entries.filter { $0.status == .recording }
         for rec in orphans {
-            guard FileManager.default.fileExists(atPath: rec.url.path) else {
+            guard rec.hasTranscribableAudio else {
                 Log.error("Orphan \(rec.folder) had no audio file; removing")
                 delete(rec.id)
                 continue
@@ -216,10 +227,13 @@ final class RecordingStore {
     /// launch retry actually re-runs it. The retry path skips `.running` entries, so
     /// without this a crash mid-transcription would stick on "Transcribing…" forever.
     func demoteRunningTranscriptions() {
-        for rec in entries where rec.transcription == .running {
-            update(rec.id) { $0.transcription = .none }
-            Log.info("Reset stuck transcription for \(rec.folder)")
+        var changed = false
+        for idx in entries.indices where entries[idx].transcription == .running {
+            entries[idx].transcription = .none
+            Log.info("Reset stuck transcription for \(entries[idx].folder)")
+            changed = true
         }
+        if changed { save() }   // one write, not one per stuck entry
     }
 
     func setTranscriptionStatus(_ id: UUID, _ status: Recording.Transcription) {
@@ -335,9 +349,12 @@ final class RecordingStore {
     func runRetention(autoDeleteAfter: AutoDeletePeriod) {
         let now = Date()
         if let maxAge = autoDeleteAfter.seconds {
-            for rec in recordings where now.timeIntervalSince(rec.startedAt) > maxAge {
-                update(rec.id) { if $0.deletedAt == nil { $0.deletedAt = now } }
-                Log.info("Auto-moved \(rec.folder) to Recently Deleted (older than \(autoDeleteAfter.displayName))")
+            // Mutate in place and rely on the single save() below, rather than a full
+            // journal write per auto-deleted recording.
+            for idx in entries.indices
+            where entries[idx].deletedAt == nil && now.timeIntervalSince(entries[idx].startedAt) > maxAge {
+                entries[idx].deletedAt = now
+                Log.info("Auto-moved \(entries[idx].folder) to Recently Deleted (older than \(autoDeleteAfter.displayName))")
             }
         }
         let purge = deletedRecordings.filter {

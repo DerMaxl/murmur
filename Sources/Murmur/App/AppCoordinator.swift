@@ -151,7 +151,7 @@ final class AppCoordinator {
     /// transcription self-heal on the next launch.
     private func retryPendingTranscriptions() {
         for rec in store.recordings where rec.transcription != .done {
-            guard FileManager.default.fileExists(atPath: rec.url.path) else { continue }
+            guard rec.hasTranscribableAudio else { continue }
             // Launch-retry, not a user action: don't play a sound or touch the clipboard.
             if rec.source == .meeting { transcribeMeeting(rec.id, userInitiated: false) }
             else { transcribe(rec.id, userInitiated: false) }

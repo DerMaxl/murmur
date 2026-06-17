@@ -11,6 +11,7 @@ final class SystemAudioRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var outputFile: AVAudioFile?
     private var converter: AVAudioConverter?
+    private var converterInputFormat: AVAudioFormat?
     private(set) var isRecording = false
 
     /// Live loudness (0...1) per buffer, for the meter HUD. Set before `start()`.
@@ -43,6 +44,7 @@ final class SystemAudioRecorder: @unchecked Sendable {
         tap.stop()
         outputFile = nil
         converter = nil
+        converterInputFormat = nil
         isRecording = false
         Log.info("System-audio capture stopped")
     }
@@ -55,10 +57,13 @@ final class SystemAudioRecorder: @unchecked Sendable {
         guard let outputFile else { return }
 
         let target = CrashSafeRecorder.transcriptionFormat
-        if converter == nil {
-            // The tap format (e.g. 48 kHz stereo) is known once buffers arrive;
-            // build the stereo→mono / 48k→16k converter from it.
+        if converter == nil || converterInputFormat != inBuffer.format {
+            // The tap format (e.g. 48 kHz stereo) is known once buffers arrive; build
+            // the stereo→mono / 48k→16k converter from it. Rebuild if the format ever
+            // changes mid-recording (e.g. the default output device switches), so we
+            // never feed mismatched buffers to a stale converter.
             converter = AVAudioConverter(from: inBuffer.format, to: target)
+            converterInputFormat = inBuffer.format
         }
         guard let converter else { return }
 
