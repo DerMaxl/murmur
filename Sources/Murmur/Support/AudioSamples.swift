@@ -91,10 +91,23 @@ enum AudioSamples {
         }
         try file.read(into: buffer)
         let count = Int(buffer.frameLength)
+        let channelCount = Int(format.channelCount)
         var samples: [Float] = []
-        if let channel = buffer.floatChannelData, count > 0 {
-            samples = Array(UnsafeBufferPointer(start: channel[0], count: count))
+        if let channelData = buffer.floatChannelData, count > 0 {
+            if channelCount <= 1 {
+                samples = Array(UnsafeBufferPointer(start: channelData[0], count: count))
+            } else {
+                // Average all channels to mono rather than keeping only the first, so a
+                // stereo file doesn't silently lose a side before ASR / diarization.
+                samples = [Float](repeating: 0, count: count)
+                for ch in 0..<channelCount {
+                    let p = channelData[ch]
+                    for i in 0..<count { samples[i] += p[i] }
+                }
+                let scale = 1 / Float(channelCount)
+                for i in 0..<count { samples[i] *= scale }
+            }
         }
-        return (samples, Int(format.sampleRate), Int(format.channelCount))
+        return (samples, Int(format.sampleRate), channelCount)
     }
 }
