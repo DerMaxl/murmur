@@ -68,15 +68,19 @@ struct RecordingDetailView: View {
             .tint(didCopy ? .green : Brand.accent)
             .disabled(rec.transcript?.isEmpty ?? true)
             .help(didCopy ? "Copied" : "Copy transcript")
+            .accessibilityLabel("Copy transcript")
             Button { model.revealInFinder(rec.id) } label: { Image(systemName: "folder") }
                 .help("Reveal in Finder")
+                .accessibilityLabel("Reveal in Finder")
             if rec.transcription == .failed || rec.transcription == .none {
                 Button { model.transcribe(rec.id) } label: { Image(systemName: "arrow.clockwise") }
                     .help("Transcribe")
+                    .accessibilityLabel("Transcribe")
             }
             Button { confirmingDelete = true } label: { Image(systemName: "trash") }
                 .tint(.red)
                 .help("Delete")
+                .accessibilityLabel("Delete")
         }
         // Bordered buttons show the standard pressed-in highlight on click, so every
         // action gives visible feedback. Consistent brand tint, green on a successful

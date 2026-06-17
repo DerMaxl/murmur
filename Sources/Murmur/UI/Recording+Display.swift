@@ -26,7 +26,7 @@ extension Recording {
     /// Word count of the transcript (0 if none yet).
     var wordCount: Int {
         guard let t = transcript else { return 0 }
-        return t.split { $0 == " " || $0 == "\n" || $0 == "\t" }.count
+        return t.split(whereSeparator: \.isWhitespace).count
     }
 
     /// A one-line subtitle: the AI summary if present, else the start of the
@@ -35,7 +35,9 @@ extension Recording {
         if let s = summary, !s.isEmpty { return s }
         if let t = transcript?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty {
             let firstLine = t.split(separator: "\n").first.map(String.init) ?? t
-            return String(firstLine.prefix(120))
+            // The row caps display at two lines; keep a generous bound and add an
+            // ellipsis so a long first line reads as truncated rather than cut off.
+            return firstLine.count > 200 ? String(firstLine.prefix(200)) + "…" : firstLine
         }
         switch transcription {
         case .running: return "Transcribing…"

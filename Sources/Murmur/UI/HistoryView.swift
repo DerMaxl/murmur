@@ -71,6 +71,7 @@ struct HistoryView: View {
                 if !search.isEmpty {
                     Button { search = "" } label: { Image(systemName: "xmark.circle.fill") }
                         .buttonStyle(.plain).foregroundStyle(.secondary)
+                        .accessibilityLabel("Clear search")
                 }
             }
             .padding(8)

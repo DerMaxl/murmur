@@ -52,7 +52,7 @@ struct RecentlyDeletedView: View {
             Button("Delete All Permanently", role: .destructive) { model.emptyTrash() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This removes \(model.deletedRecordings.count) recording(s) and their files. This can't be undone.")
+            Text("This removes \(model.deletedRecordings.count) recording\(model.deletedRecordings.count == 1 ? "" : "s") and their files. This can't be undone.")
         }
         .confirmationDialog("Permanently delete this recording?",
                             isPresented: Binding(get: { pendingDelete != nil },
