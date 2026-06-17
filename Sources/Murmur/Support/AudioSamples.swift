@@ -18,6 +18,9 @@ enum AudioSamples {
     static func write16kMonoCopy(of url: URL) throws -> URL {
         let inFile = try AVAudioFile(forReading: url)
         let inFormat = inFile.processingFormat
+        // A degenerate file could report a 0 sample rate; bail with a catchable error
+        // rather than letting the ratio below go to infinity and trap on conversion.
+        guard inFormat.sampleRate > 0 else { throw CocoaError(.fileReadCorruptFile) }
         guard let outFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
                                             sampleRate: 16_000,
                                             channels: 1,
