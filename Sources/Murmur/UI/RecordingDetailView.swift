@@ -7,7 +7,6 @@ struct RecordingDetailView: View {
     @Bindable var model: AppModel
     var onDelete: () -> Void
 
-    @State private var confirmingDelete = false
     /// Briefly true right after a copy, to swap the copy icon to a confirmation check.
     @State private var didCopy = false
     /// Guards the check's auto-reset so a quick second copy doesn't clear it early.
@@ -31,12 +30,6 @@ struct RecordingDetailView: View {
             // scales with the zoom level so the line length stays balanced when zoomed.
             .frame(maxWidth: 720 * scale, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .center)
-        }
-        .confirmationDialog("Move to Recently Deleted?", isPresented: $confirmingDelete, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) { model.delete(rec.id); onDelete() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("You can restore it from Recently Deleted for 30 days before it's removed for good.")
         }
     }
 
@@ -77,7 +70,9 @@ struct RecordingDetailView: View {
                     .help("Transcribe")
                     .accessibilityLabel("Transcribe")
             }
-            Button { confirmingDelete = true } label: { Image(systemName: "trash") }
+            // Delete is immediate, no confirmation: it's a soft delete the user can
+            // restore from Recently Deleted for 30 days.
+            Button { model.delete(rec.id); onDelete() } label: { Image(systemName: "trash") }
                 .tint(.red)
                 .help("Delete")
                 .accessibilityLabel("Delete")
