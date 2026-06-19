@@ -91,10 +91,14 @@ final class GlobalHotkey {
     private nonisolated func handle(type: CGEventType, event: CGEvent) -> Bool {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             MainActor.assumeIsolated {
-                // Reset held-state: if the key-up was dropped while the tap was disabled,
-                // a stale `isDown` would ignore the next press / leave a hold stuck.
+                // The tap was disabled (slow callback or system load) and any key-up that
+                // happened meanwhile was dropped. Clear our held-state AND, if we were
+                // mid-hold, synthesize the release so the consumer (push-to-talk
+                // dictation) ends instead of getting stuck "down" with the HUD up.
+                let wasDown = isDown
                 isDown = false
                 if let tap = eventTap { CGEvent.tapEnable(tap: tap, enable: true) }
+                if wasDown { onRelease?() }
             }
             return false
         }
