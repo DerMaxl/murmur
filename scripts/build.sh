@@ -80,11 +80,36 @@ echo "==> Built: $APP_DIR"
 # project folder), and register it with Launch Services so it shows up promptly.
 # Best-effort: a failure here never fails the build.
 INSTALL_PATH="/Applications/$APP_NAME.app"
+RUNNING_MATCH="$INSTALL_PATH/Contents/MacOS/$APP_NAME"
+
+# Quit any instance running from the install path first. Copying the new bundle
+# over a running .app swaps its resources out from under the live process, which
+# leaves a stale instance that can wedge the UI (e.g. a HUD/popup that won't
+# dismiss). Relaunch afterwards only if it was running, so we don't pop the app
+# open for someone who had it closed.
+WAS_RUNNING=0
+if pgrep -f "$RUNNING_MATCH" >/dev/null 2>&1; then
+    WAS_RUNNING=1
+    echo "==> Quitting running $APP_NAME before reinstall..."
+    osascript -e "tell application \"$APP_NAME\" to quit" 2>/dev/null || true
+    for _ in $(seq 1 20); do
+        pgrep -f "$RUNNING_MATCH" >/dev/null 2>&1 || break
+        sleep 0.25
+    done
+    # Force-kill if it ignored the graceful quit.
+    pgrep -f "$RUNNING_MATCH" >/dev/null 2>&1 && pkill -9 -f "$RUNNING_MATCH" 2>/dev/null || true
+fi
+
 if rm -rf "$INSTALL_PATH" 2>/dev/null && cp -R "$APP_DIR" "$INSTALL_PATH" 2>/dev/null; then
     LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
     [ -x "$LSREGISTER" ] && "$LSREGISTER" -f "$INSTALL_PATH" 2>/dev/null || true
     echo "==> Installed: $INSTALL_PATH (findable in Spotlight/Raycast)"
-    echo "    Launch:  open \"$INSTALL_PATH\""
+    if [ "$WAS_RUNNING" -eq 1 ]; then
+        echo "==> Relaunching $APP_NAME..."
+        open "$INSTALL_PATH"
+    else
+        echo "    Launch:  open \"$INSTALL_PATH\""
+    fi
 else
     echo "==> Could not install to /Applications (skipped); launch: open \"$APP_DIR\""
 fi
