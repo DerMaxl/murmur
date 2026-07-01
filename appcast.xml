@@ -5,16 +5,18 @@
     <description>Updates for Murmur, private on-device speech-to-text for macOS.</description>
     <language>en</language>
     <item>
-      <title>Version 0.5.1</title>
+      <title>Version 0.6.0</title>
       <description><![CDATA[<ul>
-<li>Storage now lists Recently Deleted separately, so "Saved recordings" reflects only the recordings you are keeping.</li>
-<li>Clearer feedback in History: the copy, reveal, and delete buttons highlight when clicked, and Copy shows a checkmark when it is done.</li>
+<li>Fixed a freeze that could make Murmur stop responding when the audio system was slow or busy while starting or stopping a recording.</li>
+<li>Meetings no longer lower your system volume while recording, so live calls (like Google Meet) stay easy to hear.</li>
+<li>Meetings now show a "Starting…" indicator immediately instead of a short delay before recording begins.</li>
+<li>Murmur now tells you when a meeting captured only your microphone and not the other side.</li>
 </ul>]]></description>
-      <pubDate>Tue, 16 Jun 2026 18:42:49 +0000</pubDate>
-      <sparkle:version>9</sparkle:version>
-      <sparkle:shortVersionString>0.5.1</sparkle:shortVersionString>
+      <pubDate>Wed, 01 Jul 2026 11:23:16 +0000</pubDate>
+      <sparkle:version>10</sparkle:version>
+      <sparkle:shortVersionString>0.6.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.5.1/Murmur.zip" sparkle:edSignature="29JMWjR4KI8n0CDmX+waCQUNB6zCgbNJiliy+TajJ71+LkU6mqoYst3Ic6LRqAHhVKgOMAI3Eyja0jKRYSMLBQ==" length="5282172" type="application/octet-stream" />
+      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.6.0/Murmur.zip" sparkle:edSignature="V0i6ZjYCNZ1s7gyzSG7zmNEh+lQLNYXVz++E7/4ouWhS/fEq4gBCb/5i+4GSujPHToiHavYGFiWgXyp1A8+IBg==" length="5306861" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
