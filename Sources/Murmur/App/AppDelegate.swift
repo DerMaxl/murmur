@@ -9,7 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private let hud = RecordingHUD()
     private let updater = AppUpdater()
-    private enum HUDState { case hidden, recording, processing }
+    private enum HUDState { case hidden, starting, recording, processing }
     private var hudState: HUDState = .hidden
     /// Whether the status menu is currently open; we only rebuild its recording rows
     /// while it's visible (state changes fire often during transcription).
@@ -49,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.updater.installPendingUpdateIfIdle()   // apply a held update once idle
         }
         coordinator.onAudioLevel = { [weak self] level in self?.hud.push(level: level) }
+        coordinator.onNotice = { [weak self] message in self?.hud.showNotice(message) }
         // Let the updater defer installing while a recording is in progress.
         updater.isRecording = { [weak self] in
             guard let self else { return false }
@@ -127,12 +128,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// on transitions so the elapsed timer isn't reset by unrelated UI refreshes.
     private func updateHUD() {
         let recording = coordinator.isDictating || coordinator.isMeetingRecording
+        // A meeting's audio capture takes a few seconds to spin up; show feedback at once.
+        let starting = coordinator.isMeetingStarting && !recording
         // After a dictation, keep the HUD up while the transcript is being produced.
         let processing = coordinator.isFinishingDictation && !recording
-        let desired: HUDState = recording ? .recording : (processing ? .processing : .hidden)
+        let desired: HUDState = recording ? .recording
+            : starting ? .starting
+            : processing ? .processing
+            : .hidden
         guard desired != hudState else { return }
         hudState = desired
         switch desired {
+        case .starting:   hud.showProcessing("Starting")
         case .recording:  hud.show()
         case .processing: hud.showProcessing(coordinator.engineReady ? "Transcribing" : "Loading model")
         case .hidden:     hud.hide()
@@ -343,7 +350,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Stop an in-progress meeting so the journal records a clean finish instead of
     /// an orphan to crash-recover; its transcription re-runs on the next launch.
     func applicationWillTerminate(_ notification: Notification) {
-        if coordinator.isMeetingRecording { coordinator.stopMeeting() }
+        coordinator.stopMeetingAtTerminate()
     }
 
     // MARK: Per-recording actions (id carried in representedObject)

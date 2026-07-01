@@ -36,13 +36,14 @@ final class AppCoordinator {
         let d = DictationController(engine: engine)
         d.canStart = { [weak self] in
             guard let self else { return false }
-            return !self.isMeetingRecording   // not while a meeting is recording
+            return !self.isMeetingActive   // not while a meeting is recording or starting
         }
         d.onStateChange = { [weak self] in self?.onStateChange?() }
         d.onLevel = { [weak self] level in self?.onAudioLevel?(level) }
         d.onTranscript = { [weak self] text, duration, targetApp in
             self?.saveDictation(text: text, duration: duration, targetApp: targetApp)
         }
+        d.onNotice = { [weak self] message in self?.onNotice?(message) }
         return d
     }()
 
@@ -53,7 +54,25 @@ final class AppCoordinator {
     /// Live mic loudness (0...1) while recording or dictating, for the meter HUD.
     var onAudioLevel: (@MainActor (Float) -> Void)?
 
-    var isMeetingRecording: Bool { meeting.isRecording }
+    /// A brief transient message to surface (e.g. a recording that couldn't start).
+    var onNotice: (@MainActor (String) -> Void)?
+
+    /// True while a meeting is being set up (the audio engine/tap start off the main
+    /// thread), before it's actually recording.
+    private var meetingStarting = false
+    /// True while a meeting is tearing down off the main thread, so a toggle during the
+    /// teardown doesn't start a new meeting that overlaps the old one on the audio queue.
+    private var meetingStopping = false
+
+    /// Meeting state is tracked here, on the main actor, rather than read off
+    /// `MeetingRecorder.isRecording` (which is mutated on a background queue): a lone
+    /// `currentMeeting` set/cleared on the main thread is the single source of truth.
+    var isMeetingRecording: Bool { currentMeeting != nil && !meetingStarting }
+    /// A meeting is spinning up its audio capture (can take a few seconds), before it's
+    /// actually recording; lets the HUD show an immediate "starting" state.
+    var isMeetingStarting: Bool { meetingStarting }
+    /// Recording, starting, or tearing down; used to veto dictation and re-entrant starts.
+    var isMeetingActive: Bool { currentMeeting != nil || meetingStarting || meetingStopping }
 
     // MARK: Dictation
 
@@ -186,37 +205,48 @@ final class AppCoordinator {
     }
 
     func startMeeting() {
-        guard !isDictating, !isMeetingRecording else { return }
+        guard !isDictating, !isMeetingActive else { return }
+        meetingStarting = true
+        onStateChange?()   // show the HUD's "starting" state immediately, before setup
         prewarmEngine()   // get the model loading while the meeting records
         requestMicrophone { [weak self] granted in
             guard let self else { return }
-            guard granted else { self.presentMicrophoneDenied(); return }
-            // Re-check after the async permission prompt.
-            guard !self.isMeetingRecording, !self.isDictating else { return }
+            guard granted else { self.meetingStarting = false; self.presentMicrophoneDenied(); return }
+            // Re-check after the async permission prompt (a dictation can't have started
+            // while meetingStarting vetoed it, but guard defensively).
+            guard !self.isDictating else { self.meetingStarting = false; return }
             // Label only with an app that's actually outputting audio (not the frontmost
             // window); tracking below keeps refining the set as the meeting goes on.
             let app = AudioProcessProbe.audioProducingApps().first?.localizedName
             let rec = self.store.beginRecording(source: .meeting, sourceApp: app)
-            do {
-                try self.meeting.start(micURL: rec.micURL, systemURL: rec.systemURL)
-                self.currentMeeting = rec
-                // Record each track's start instant so transcription can align them on a
-                // common timeline (persisted, so a crash-retry stays aligned too).
-                self.store.update(rec.id) {
-                    $0.micStartedAt = self.meeting.micStartedAt
-                    $0.systemStartedAt = self.meeting.systemStartedAt
-                }
-                self.startSourceAppTracking(rec.id)
-                Sounds.recordingStarted()
-            } catch {
-                self.store.delete(rec.id)
-                self.currentMeeting = nil
-                self.presentError("Couldn't start meeting recording",
-                                  "\(error)\n\nMeeting capture needs system-audio access. "
-                                  + "Approve the prompt, or enable it under System Settings → "
-                                  + "Privacy & Security, then try again.")
-            }
+            self.currentMeeting = rec
             self.onStateChange?()
+            // Start the tap + engine off the main thread so a wedged CoreAudio call can't
+            // freeze the UI; a timeout surfaces a clean error instead of hanging.
+            Task {
+                let started = await self.meeting.startAsync(micURL: rec.micURL, systemURL: rec.systemURL)
+                self.meetingStarting = false
+                if started {
+                    // Record each track's start instant so transcription can align them on
+                    // a common timeline (persisted, so a crash-retry stays aligned too).
+                    self.store.update(rec.id) {
+                        $0.micStartedAt = self.meeting.micStartedAt
+                        $0.systemStartedAt = self.meeting.systemStartedAt
+                    }
+                    self.startSourceAppTracking(rec.id)
+                    Sounds.recordingStarted()
+                } else {
+                    self.store.delete(rec.id)
+                    self.currentMeeting = nil
+                    self.presentError("Couldn't start meeting recording",
+                                      "The audio system didn't respond in time. This can happen "
+                                      + "right after connecting or switching an audio device, or "
+                                      + "if system-audio access is needed. Approve any prompt, or "
+                                      + "enable it under System Settings → Privacy & Security, "
+                                      + "then try again.")
+                }
+                self.onStateChange?()
+            }
         }
     }
 
@@ -244,16 +274,37 @@ final class AppCoordinator {
     }
 
     func stopMeeting() {
+        guard let rec = currentMeeting else { return }   // also guards re-entry
+        currentMeeting = nil
+        meetingStopping = true
         sourceAppTimer?.invalidate()
         sourceAppTimer = nil
-        meeting.stop()
         Sounds.recordingStopped()
-        if let rec = currentMeeting {
+        onStateChange?()
+        // Tear down off the main thread (teardown makes blocking CoreAudio calls), then
+        // finalize + transcribe once it has actually stopped.
+        Task {
+            await meeting.stopAsync()
+            meetingStopping = false
+            let systemSilent = meeting.systemAudioWasSilent   // read before any next meeting
             store.finishRecording(rec.id)
             transcribeMeeting(rec.id)
+            onStateChange?()
+            if systemSilent { warnSystemAudioSilentOnce() }
         }
-        currentMeeting = nil
-        onStateChange?()
+    }
+
+    /// Synchronous stop for app termination: flush both tracks and mark the recording
+    /// finished so it isn't left as a crash-orphan. Transcription re-runs on next launch.
+    /// The stop is serialized onto the audio queue (not run on the main thread) so it can't
+    /// race an in-flight start that's still setting up on that queue.
+    func stopMeetingAtTerminate() {
+        guard let rec = currentMeeting else { return }
+        currentMeeting = nil   // fully synchronous below, so no meetingStopping flag needed
+        sourceAppTimer?.invalidate()
+        sourceAppTimer = nil
+        meeting.stopSync()
+        store.finishRecording(rec.id)
     }
 
     /// Transcribe a meeting's two tracks into one chronological conversation: your mic
@@ -649,6 +700,23 @@ final class AppCoordinator {
         let alert = NSAlert()
         alert.messageText = title
         alert.informativeText = detail
+        alert.runModal()
+    }
+
+    private static let warnedSystemAudioSilentKey = "warnedSystemAudioSilent"
+
+    /// Shown once, after a meeting whose system-audio track came back silent: the meeting
+    /// then holds only your mic ("You:"), not the other side, with nothing to explain why.
+    /// We deliberately don't claim a cause here - a silent system track has been seen even
+    /// with the System Audio Recording permission granted (see PLAN.md known issues), so we
+    /// just surface the fact. Gated to once ever so it never nags.
+    private func warnSystemAudioSilentOnce() {
+        guard !UserDefaults.standard.bool(forKey: Self.warnedSystemAudioSilentKey) else { return }
+        UserDefaults.standard.set(true, forKey: Self.warnedSystemAudioSilentKey)
+        let alert = NSAlert()
+        alert.messageText = "The other side wasn't recorded"
+        alert.informativeText = "This meeting's system audio came through silent, so the "
+            + "other side isn't in the transcript — only your microphone."
         alert.runModal()
     }
 }

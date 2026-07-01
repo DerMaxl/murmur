@@ -41,7 +41,10 @@ final class DictationController {
     }
 
     private let engine: TranscriptionEngine
-    private let recorder = CrashSafeRecorder()
+    /// The current capture's recorder. A fresh instance is made per capture (see
+    /// `startCapture`) so a slow, superseded, or timed-out start only ever tears down its
+    /// own engine and file, never a newer recording's.
+    private var recorder: CrashSafeRecorder?
     private let injector = TextInjector()
     private var hotkey: GlobalHotkey
     /// In hold-with-latch mode, holding longer than this latches the recording.
@@ -72,14 +75,13 @@ final class DictationController {
     /// once injected, so it can be saved to history. Not called for empty/no-speech
     /// dictations.
     var onTranscript: (@MainActor (String, TimeInterval, String?) -> Void)?
+    /// A brief transient message for the HUD, e.g. when a recording couldn't start.
+    var onNotice: (@MainActor (String) -> Void)?
 
     init(engine: TranscriptionEngine) {
         self.engine = engine
         self.hotkey = GlobalHotkey(shortcut: Settings.dictationShortcut)
         wireHotkey()
-        recorder.onLevel = { [weak self] level in
-            Task { @MainActor in self?.onLevel?(level) }
-        }
     }
 
     private func wireHotkey() {
@@ -248,31 +250,90 @@ final class DictationController {
 
     // MARK: Capture
 
+    /// Identifies the current capture attempt, so an engine start that finishes late (or
+    /// after the gesture already ended) can tell it was superseded.
+    private var captureID = 0
+    /// True while the audio engine is still starting on a background thread.
+    private var startInFlight = false
+    /// What to do once the engine finishes starting, if the gesture ended first.
+    private enum EndRequest { case finish(duration: TimeInterval, targetApp: String?), abort }
+    private var endRequest: EndRequest?
+
     private func startCapture(into newPhase: Phase) {
-        if let canStart, !canStart() { return }   // e.g. a voice memo is recording
+        if let canStart, !canStart() { return }   // e.g. a meeting is recording
         guard ensureMicrophoneAccess() else { return }   // prompt on first use; bail if denied
-        // Record from the user's chosen mic (settings), or the system default when unset.
-        recorder.inputDeviceID = CrashSafeRecorder.preferredInputDevice()
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("murmur-dictation-\(UUID().uuidString).caf")
-        do {
-            try recorder.start(writingTo: url)
-            tempURL = url
-            beganAt = Date()
-            pressedAt = Date()
-            latched = false
-            phase = newPhase
-            ducker.duckIfPlaying()
-            Sounds.recordingStarted()
-            // Return/Enter end a hands-free dictation. During a pure hold we don't arm
-            // them: you stop by releasing the key, and any key press cancels (see
-            // comboKeyPressed), so arming them here would fight that.
-            if newPhase == .handsFree { armStopKeys() }
-            onStateChange?()
-        } catch {
-            Log.error("Dictation capture failed: \(error.localizedDescription)")
-            tempURL = nil
+
+        // A fresh recorder per capture: its start/stop only ever touch its own engine and
+        // file, so a slow, superseded, or timed-out start can never tear down a newer
+        // recording (the Task below owns this instance for its whole lifetime).
+        let recorder = CrashSafeRecorder()
+        recorder.onLevel = { [weak self] level in
+            Task { @MainActor in self?.onLevel?(level) }
         }
+        // Record from the user's chosen mic (settings), or the system default when unset.
+        recorder.inputDeviceID = CrashSafeRecorder.preferredInputDevice()
+        self.recorder = recorder
+
+        // Set the UI state up front so the HUD appears instantly; the recording is only
+        // "confirmed" once the engine actually starts (in the Task below).
+        captureID &+= 1
+        let id = captureID
+        startInFlight = true
+        endRequest = nil
+        isFinishing = false
+        phase = newPhase
+        let now = Date()   // one instant: recording start (beganAt) and key-down (pressedAt)
+        beganAt = now
+        pressedAt = now
+        latched = false
+        tempURL = url
+        ducker.duckIfPlaying()
+        // Return/Enter end a hands-free dictation. During a pure hold we don't arm them:
+        // you stop by releasing the key, and any key press cancels (see comboKeyPressed).
+        if newPhase == .handsFree { armStopKeys() }
+        onStateChange?()
+
+        // Start the engine off the main thread so a wedged CoreAudio call can't freeze the
+        // UI; a timeout turns an indefinite stall into a clean "couldn't start" instead.
+        Task { [weak self] in
+            let started = await recorder.startAsync(writingTo: url)
+            guard let self, self.captureID == id else {
+                // No controller, or a newer capture superseded this one: tear down our own
+                // recorder (a separate instance) and don't leak the temp file.
+                if started { await recorder.stopAsync() }
+                try? FileManager.default.removeItem(at: url)
+                return
+            }
+            self.startInFlight = false
+            guard started else { self.startFailed(url: url); return }
+            // The gesture may have ended while the engine was still starting.
+            switch self.endRequest {
+            case .finish(let duration, let targetApp):
+                self.endRequest = nil
+                await recorder.stopAsync()
+                self.transcribeAndInject(url: url, duration: duration, targetApp: targetApp)
+            case .abort:
+                self.endRequest = nil
+                await recorder.stopAsync()
+                try? FileManager.default.removeItem(at: url)
+            case .none:
+                Sounds.recordingStarted()   // recording is live
+            }
+        }
+    }
+
+    /// Reset the per-capture state back to idle. Callers handle `isFinishing` themselves
+    /// (a finish keeps the HUD up; an abort or a failed start clears it). Callers that still
+    /// need the recorder must copy `self.recorder` into a local *before* calling this.
+    private func resetCaptureState() {
+        phase = .idle
+        tempURL = nil
+        beganAt = nil
+        pressedAt = nil
+        latched = false
+        recorder = nil   // release the stopped recorder (and its engine) between captures
     }
 
     /// Stop and discard an in-progress dictation: no transcription, no injection. Used
@@ -280,15 +341,16 @@ final class DictationController {
     private func abortCapture() {
         cancelLatch()
         disarmStopKeys()
-        guard phase != .idle, let url = tempURL else { phase = .idle; return }
-        recorder.stop()
+        guard phase != .idle, let url = tempURL else { resetCaptureState(); return }
         ducker.restore()
-        try? FileManager.default.removeItem(at: url)
-        phase = .idle
-        tempURL = nil
-        beganAt = nil
-        pressedAt = nil
-        latched = false
+        let recorder = self.recorder
+        resetCaptureState()
+        isFinishing = false
+        if startInFlight {
+            endRequest = .abort   // the start Task tears it down once the engine comes up
+        } else {
+            Task { await recorder?.stopAsync(); try? FileManager.default.removeItem(at: url) }
+        }
         onStateChange?()
         Log.info("Dictation cancelled (trigger used as a modifier)")
     }
@@ -296,23 +358,46 @@ final class DictationController {
     private func finishCapture() {
         cancelLatch()
         disarmStopKeys()
-        guard phase != .idle, let url = tempURL else { phase = .idle; return }
-        recorder.stop()
-        ducker.restore()   // unmute the moment recording stops
+        guard phase != .idle, let url = tempURL else { resetCaptureState(); return }
+        ducker.restore()   // unmute the moment the gesture ends
         Sounds.recordingStopped()
         let duration = beganAt.map { Date().timeIntervalSince($0) } ?? 0
-        // The frontmost app right now is the one that'll receive the text (our
-        // accessory app never takes focus); record it for the history view.
+        // The frontmost app right now is the one that'll receive the text (our accessory
+        // app never takes focus); record it for the history view.
         let targetApp = NSWorkspace.shared.frontmostApplication?.localizedName
-        phase = .idle
-        tempURL = nil
-        beganAt = nil
-        pressedAt = nil
+        let recorder = self.recorder
+        resetCaptureState()
         isFinishing = true   // keep the HUD up in a "finishing" state until text lands
         onStateChange?()
+        if startInFlight {
+            // Engine still starting: hand the stop + transcription to the start Task.
+            endRequest = .finish(duration: duration, targetApp: targetApp)
+        } else {
+            Task { [weak self] in
+                await recorder?.stopAsync()   // flush the file before transcribing
+                self?.transcribeAndInject(url: url, duration: duration, targetApp: targetApp)
+            }
+        }
+    }
 
-        // The temp audio is transcribed, injected, then discarded; the text is
-        // handed to onTranscript to be saved (text-only) in history.
+    /// Roll back the optimistic state when the engine couldn't start (a wedged or slow
+    /// audio system) and show a brief notice instead of freezing.
+    private func startFailed(url: URL) {
+        cancelLatch()
+        disarmStopKeys()
+        endRequest = nil
+        ducker.restore()
+        try? FileManager.default.removeItem(at: url)
+        resetCaptureState()
+        isFinishing = false
+        onStateChange?()
+        onNotice?("Couldn't start recording")
+        Log.error("Dictation couldn't start (audio system busy)")
+    }
+
+    /// Transcribe the captured audio, inject it at the cursor, and hand off the text to be
+    /// saved. Runs the model off the main actor; clears the finishing state when done.
+    private func transcribeAndInject(url: URL, duration: TimeInterval, targetApp: String?) {
         Task { [engine, weak self] in
             defer { try? FileManager.default.removeItem(at: url) }
             do {
@@ -320,8 +405,8 @@ final class DictationController {
                 let cleaned = TextCleaner.process(transcript.text)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 if !cleaned.isEmpty {
-                    // Optional on-device AI polish (stutters / false starts). Adds
-                    // latency, so it's gated by a setting; falls back to the cleaned text.
+                    // Optional on-device AI polish (stutters / false starts). Adds latency,
+                    // so it's gated by a setting; falls back to the cleaned text.
                     let text = await Polisher.polishIfEnabled(cleaned)
                     await MainActor.run {
                         self?.injector.inject(text)

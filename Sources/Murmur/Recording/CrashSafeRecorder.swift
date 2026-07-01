@@ -10,7 +10,16 @@ import CoreAudio
 /// engine consumes, so recording and transcription share one pipeline. CAF is used
 /// because it stays readable while still being written, its header doesn't depend
 /// on a final size field the way canonical WAV does.
-final class CrashSafeRecorder {
+///
+/// `@unchecked Sendable`: all recording state is guarded by `lock`, and the
+/// configuration vars (`onLevel`, `inputDeviceID`) are set before `start()`. This lets
+/// `startAsync`/`stopAsync` run the blocking setup on a background queue instead of the
+/// main thread.
+final class CrashSafeRecorder: @unchecked Sendable {
+
+    /// Serial queue for the blocking start/stop, so audio setup never runs on (and
+    /// freezes) the main thread when the audio system is slow or wedged.
+    private let startQueue = DispatchQueue(label: "com.murmur.recorder.start", qos: .userInitiated)
 
     /// The format every recording is written in, and every engine consumes.
     static let transcriptionFormat = AVAudioFormat(
@@ -34,11 +43,6 @@ final class CrashSafeRecorder {
     /// UI can show a meter. Set before `start()`.
     var onLevel: (@Sendable (Float) -> Void)?
 
-    /// Enable macOS voice processing (acoustic echo cancellation + noise suppression)
-    /// on the mic, so meetings don't re-record the other participants coming out of the
-    /// speakers. Set before `start()`. Off by default - dictation doesn't need it.
-    var enableVoiceProcessing = false
-
     /// Capture from this specific input device instead of the system default. Used for
     /// meetings on Bluetooth/USB headphones: recording the headset's own mic forces it
     /// into the low-quality call (HFP) profile, which makes all audio stutter, so we
@@ -55,12 +59,6 @@ final class CrashSafeRecorder {
         // Fresh engine so the input node binds to whatever the default input is *now*.
         engine = AVAudioEngine()
         let input = engine.inputNode
-        // Must be set before querying the input format / starting the engine.
-        // Best-effort: if the system refuses it we still record, just without AEC.
-        if enableVoiceProcessing {
-            do { try input.setVoiceProcessingEnabled(true) }
-            catch { Log.error("Voice processing unavailable: \(error.localizedDescription)") }
-        }
         // A freshly created AVAudioEngine already binds its input node to the *current*
         // default input device, so we only override when a specific device is requested
         // (e.g. forcing the built-in mic for a meeting on Bluetooth headphones).
@@ -120,6 +118,29 @@ final class CrashSafeRecorder {
         converter = nil
         isRecording = false
         Log.info("Recording stopped")
+    }
+
+    // MARK: Off-main start / stop
+
+    /// Start capture on a background queue with a timeout, so a wedged CoreAudio call
+    /// can't freeze the UI. Returns whether capture began in time; a start that unblocks
+    /// after the timeout tears itself back down. Set `inputDeviceID` before calling.
+    func startAsync(writingTo url: URL, timeout: TimeInterval = 4) async -> Bool {
+        await startWithTimeout(on: startQueue, timeout: timeout, work: { [self] in
+            do { try start(writingTo: url); return true }
+            catch { Log.error("Recorder start failed: \(error.localizedDescription)"); return false }
+        }, undo: { [self] in stop() })
+    }
+
+    /// Stop on the background queue (teardown also makes CoreAudio calls that can block),
+    /// serialized after any in-flight `startAsync` on the same queue.
+    func stopAsync() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            startQueue.async { [self] in
+                stop()
+                continuation.resume()
+            }
+        }
     }
 
     // MARK: Input device selection

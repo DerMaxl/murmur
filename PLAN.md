@@ -24,6 +24,19 @@ The four core capabilities and the polish around them are done and released:
   at login, window zoom, brand palette + icon.
 - **Automatic updates** via Sparkle (background, silent), plus a Check for Updates item.
 
+## Known issues
+
+- **Meeting system-audio track records silence (other side missing).** A meeting captures
+  the mic fine ("You:") but the system-audio track comes through as pure digital silence,
+  so the other side never appears in the transcript. Observed with the **System Audio
+  Recording permission granted**, so it is *not* (only) a permissions problem — the initial
+  permission theory was wrong. Root cause unknown; suspects: the Core Audio process-tap /
+  aggregate-device setup in `SystemAudioTap` (e.g. tapping the wrong output device, an
+  aggregate-device misconfig, or a macOS-version behaviour change). `SystemAudioRecorder`
+  now tracks whether any non-silent audio arrived (`capturedAudio`) and the app shows a
+  one-time heads-up when a meeting's system track was silent, but this only surfaces the
+  problem — it does not fix it. **TODO: investigate why the tap yields silence.**
+
 ## Roadmap / ideas
 
 - **Onboarding flow**: first-run walkthrough that requests each permission with rationale

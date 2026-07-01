@@ -13,14 +13,21 @@ final class SystemAudioRecorder: @unchecked Sendable {
     private var converter: AVAudioConverter?
     private var converterInputFormat: AVAudioFormat?
     private(set) var isRecording = false
+    /// Whether any non-silent audio arrived during this capture. Stays false when the
+    /// System Audio Recording permission is missing: the process tap then delivers pure
+    /// digital silence instead of failing, so this is the only signal that the capture
+    /// produced nothing. Written on the audio thread; read via `didCaptureAudio`.
+    private var capturedAudio = false
 
-    /// Live loudness (0...1) per buffer, for the meter HUD. Set before `start()`.
-    var onLevel: (@Sendable (Float) -> Void)?
+    /// Lock-guarded snapshot of `capturedAudio`, safe to read from any thread. Meaningful
+    /// after `stop()`.
+    var didCaptureAudio: Bool { lock.lock(); defer { lock.unlock() }; return capturedAudio }
 
     func start(writingTo url: URL) throws {
         lock.lock()
         defer { lock.unlock() }
         guard !isRecording else { return }
+        capturedAudio = false
 
         let target = CrashSafeRecorder.transcriptionFormat
         outputFile = try AVAudioFile(forWriting: url,
@@ -89,6 +96,9 @@ final class SystemAudioRecorder: @unchecked Sendable {
             Log.error("System-audio write failed: \(error.localizedDescription)")
         }
 
-        if let onLevel { onLevel(CrashSafeRecorder.loudness(outBuffer)) }
+        // Any real audio marks the track as captured; digital silence (e.g. a missing
+        // System Audio Recording permission) stays exactly 0. The system track isn't
+        // metered, so there's no live-level callback here (unlike the mic recorder).
+        if CrashSafeRecorder.loudness(outBuffer) > 0 { capturedAudio = true }
     }
 }

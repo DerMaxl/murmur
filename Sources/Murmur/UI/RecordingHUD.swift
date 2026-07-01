@@ -24,6 +24,8 @@ final class RecordingHUD {
     /// timer animates a trailing ellipsis onto.
     private var processingMessage: String?
     private var animFrame = 0
+    /// Pending auto-hide for a transient notice (see `showNotice`).
+    private var noticeHideWork: DispatchWorkItem?
 
     init() {
         let size = NSSize(width: 168, height: 44)
@@ -79,6 +81,7 @@ final class RecordingHUD {
 
     /// Recording mode: live level meter + elapsed timer.
     func show() {
+        noticeHideWork?.cancel(); noticeHideWork = nil
         processingMessage = nil
         meter.isHidden = false
         timeLabel.isHidden = false
@@ -94,6 +97,7 @@ final class RecordingHUD {
     /// Processing mode: the recording is done and we're transcribing. Keeps the panel in
     /// place, swaps the meter+timer for a centered message with an animated ellipsis.
     func showProcessing(_ message: String) {
+        noticeHideWork?.cancel(); noticeHideWork = nil
         processingMessage = message
         animFrame = 0
         statusLabel.stringValue = message
@@ -103,7 +107,27 @@ final class RecordingHUD {
         ensureVisible()
     }
 
+    /// Briefly show a one-line message (e.g. a recording that couldn't start), then
+    /// auto-hide. Independent of the recording/processing states; used for transient
+    /// feedback when there's no ongoing recording to attach to.
+    func showNotice(_ message: String, duration: TimeInterval = 2.2) {
+        processingMessage = nil
+        startDate = nil
+        meter.isHidden = true
+        timeLabel.isHidden = true
+        statusLabel.isHidden = false
+        statusLabel.stringValue = message
+        positionBottomCenter()
+        panel.orderFrontRegardless()
+        panel.contentView?.display()   // background apps don't reliably repaint on their own
+        noticeHideWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.hide() }
+        noticeHideWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
+    }
+
     func hide() {
+        noticeHideWork?.cancel(); noticeHideWork = nil
         timer?.invalidate()
         timer = nil
         startDate = nil
