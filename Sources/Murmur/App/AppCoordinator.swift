@@ -564,18 +564,19 @@ final class AppCoordinator {
 
                 let distinct = Set(speakers.map(\.speakerId))
                 let finalText: String
-                if distinct.count > 1 {
-                    // `appName` is the single-voice fallback label; unused here because
-                    // multi-speaker turns are labelled "Speaker 1/2/…" by systemTurns.
-                    let labelled = Self.systemTurns(from: transcript, speakers: speakers,
-                                                    appName: "Speaker 1")
-                    let body = Self.interleave(labelled)
-                    finalText = body.isEmpty
-                        ? await Polisher.polishIfEnabled(TextCleaner.process(transcript.text))
-                        : body
-                } else {
-                    finalText = await Polisher.polishIfEnabled(TextCleaner.process(transcript.text))
-                }
+                // Only label when the diarizer found more than one voice...
+                let labelled = distinct.count > 1
+                    ? Self.systemTurns(from: transcript, speakers: speakers, appName: "Speaker 1")
+                    : []
+                // ...AND more than one speaker actually appears in the labelled turns.
+                // Diarization can over-detect a phantom second voice (a pause, a breath,
+                // background noise) that no transcribed speech maps to, which would tag every
+                // line "Speaker 1:" with no Speaker 2. In that case keep the memo clean:
+                // plain, unprefixed text.
+                let body = Set(labelled.map(\.speaker)).count > 1 ? Self.interleave(labelled) : ""
+                finalText = body.isEmpty
+                    ? await Polisher.polishIfEnabled(TextCleaner.process(transcript.text))
+                    : body
 
                 await MainActor.run {
                     self.store.setTranscript(id, text: finalText)

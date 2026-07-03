@@ -38,6 +38,9 @@ final class CrashSafeRecorder: @unchecked Sendable {
     private var outputFile: AVAudioFile?
     private var converter: AVAudioConverter?
     private(set) var isRecording = false
+    /// Total frames written this capture, logged at `stop()`: 0 (or a tiny count) flags a
+    /// recording that came through silent - e.g. the mic held by another app.
+    private var framesWritten: AVAudioFramePosition = 0
 
     /// Live input loudness (0...1), emitted per buffer from the audio thread so the
     /// UI can show a meter. Set before `start()`.
@@ -55,6 +58,7 @@ final class CrashSafeRecorder: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         guard !isRecording else { return }
+        framesWritten = 0
 
         // Fresh engine so the input node binds to whatever the default input is *now*.
         engine = AVAudioEngine()
@@ -117,7 +121,7 @@ final class CrashSafeRecorder: @unchecked Sendable {
         outputFile = nil   // closing the AVAudioFile flushes/finalizes the CAF
         converter = nil
         isRecording = false
-        Log.info("Recording stopped")
+        Log.info("Recording stopped (\(framesWritten) frames)")
     }
 
     // MARK: Off-main start / stop
@@ -321,6 +325,7 @@ final class CrashSafeRecorder: @unchecked Sendable {
 
         do {
             try outputFile.write(from: outBuffer)
+            framesWritten += AVAudioFramePosition(outBuffer.frameLength)
         } catch {
             Log.error("Write failed: \(error.localizedDescription)")
         }
