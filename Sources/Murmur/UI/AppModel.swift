@@ -17,6 +17,7 @@ import SwiftUI
 final class AppModel {
     @ObservationIgnored let coordinator: AppCoordinator
     @ObservationIgnored private var refreshing = false
+    @ObservationIgnored private var lastLoginItemCheck = Date.distantPast
 
     /// Recordings, newest first, mirrored from the store.
     var recordings: [Recording] = []
@@ -122,7 +123,13 @@ final class AppModel {
         if dictationMode != Settings.dictationMode { dictationMode = Settings.dictationMode }
         let preferredMic = Settings.preferredInputDeviceUID ?? ""
         if preferredInputDeviceUID != preferredMic { preferredInputDeviceUID = preferredMic }
-        if launchAtLogin != LoginItem.isEnabled { launchAtLogin = LoginItem.isEnabled }
+        // SMAppService.status is a synchronous XPC round-trip; don't pay it on every
+        // state change (sync() runs once per transcribed segment). The value only
+        // changes via our own toggle or System Settings, so a periodic refresh is fine.
+        if lastLoginItemCheck.timeIntervalSinceNow < -5 {
+            lastLoginItemCheck = Date()
+            if launchAtLogin != LoginItem.isEnabled { launchAtLogin = LoginItem.isEnabled }
+        }
         if appVisibility != Settings.appVisibility { appVisibility = Settings.appVisibility }
         if autoCopyToClipboard != Settings.autoCopyToClipboard { autoCopyToClipboard = Settings.autoCopyToClipboard }
         if soundEffects != Settings.soundEffects { soundEffects = Settings.soundEffects }

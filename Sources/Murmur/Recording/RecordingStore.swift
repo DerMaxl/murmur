@@ -240,8 +240,13 @@ final class RecordingStore {
     }
 
     /// Update the transcript text mid-transcription without marking it done.
+    /// In-memory only: durability comes from the partial the caller streams to
+    /// transcript.md, and a crash mid-transcription re-runs the whole transcription
+    /// on the next launch anyway (demoteRunningTranscriptions) - so journaling every
+    /// partial would just rewrite the full journal once per transcribed segment.
     func setPartialTranscript(_ id: UUID, text: String) {
-        update(id) { $0.transcript = text }
+        guard let idx = entries.firstIndex(where: { $0.id == id }) else { return }
+        entries[idx].transcript = text
     }
 
     func setTranscript(_ id: UUID, text: String) {

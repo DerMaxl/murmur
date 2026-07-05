@@ -306,9 +306,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateStatusIcon() {
         // Same wave-M glyph in every state; tint red while recording / dictating.
+        // Assign only on change: this runs on every state change (per transcribed
+        // segment during a transcription), and reassigning forces a redraw.
         let active = coordinator.isDictating || coordinator.isMeetingRecording
-        statusItem.button?.image = menuBarIcon
-        statusItem.button?.contentTintColor = active ? .systemRed : nil
+        let tint: NSColor? = active ? .systemRed : nil
+        if statusItem.button?.image !== menuBarIcon { statusItem.button?.image = menuBarIcon }
+        if statusItem.button?.contentTintColor != tint { statusItem.button?.contentTintColor = tint }
     }
 
     @objc private func toggleMeeting() {

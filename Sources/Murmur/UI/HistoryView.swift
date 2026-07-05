@@ -31,14 +31,15 @@ struct HistoryView: View {
     }
 
     private var filtered: [Recording] {
-        let q = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let q = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        // range(of:options:) matches case-insensitively without allocating; the old
+        // lowercased() approach copied every transcript on each keystroke.
+        func has(_ s: String?) -> Bool { s?.range(of: q, options: .caseInsensitive) != nil }
         return model.recordings.filter { rec in
             guard filter.matches(rec) else { return false }
             guard !q.isEmpty else { return true }
-            return rec.displayName.lowercased().contains(q)
-                || (rec.transcript?.lowercased().contains(q) ?? false)
-                || (rec.summary?.lowercased().contains(q) ?? false)
-                || (rec.sourceApp?.lowercased().contains(q) ?? false)
+            return has(rec.displayName) || has(rec.transcript)
+                || has(rec.summary) || has(rec.sourceApp)
         }
     }
 
@@ -215,14 +216,25 @@ struct HistoryView: View {
         model.delete(id)
     }
 
+    // Cached: DateFormatter construction is milliseconds-expensive, and dayHeader
+    // runs per section per render.
+    private static let sameYearHeader: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEEE, MMM d"
+        return f
+    }()
+    private static let otherYearHeader: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d, yyyy"
+        return f
+    }()
+
     private static func dayHeader(_ day: Date) -> String {
         let cal = Calendar.current
         if cal.isDateInToday(day) { return "Today" }
         if cal.isDateInYesterday(day) { return "Yesterday" }
-        let f = DateFormatter()
-        f.dateFormat = cal.isDate(day, equalTo: Date(), toGranularity: .year)
-            ? "EEEE, MMM d" : "MMM d, yyyy"
-        return f.string(from: day)
+        let sameYear = cal.isDate(day, equalTo: Date(), toGranularity: .year)
+        return (sameYear ? sameYearHeader : otherYearHeader).string(from: day)
     }
 }
 
