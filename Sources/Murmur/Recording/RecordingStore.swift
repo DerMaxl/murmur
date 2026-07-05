@@ -374,12 +374,14 @@ final class RecordingStore {
     /// Deleted, and permanently purge trashed items past the trash window. Run at launch.
     func runRetention(autoDeleteAfter: AutoDeletePeriod) {
         let now = Date()
+        var changed = false
         if let maxAge = autoDeleteAfter.seconds {
             // Mutate in place and rely on the single save() below, rather than a full
             // journal write per auto-deleted recording.
             for idx in entries.indices
             where entries[idx].deletedAt == nil && now.timeIntervalSince(entries[idx].startedAt) > maxAge {
                 entries[idx].deletedAt = now
+                changed = true
                 Log.info("Auto-moved \(entries[idx].folder) to Recently Deleted (older than \(autoDeleteAfter.displayName))")
             }
         }
@@ -390,7 +392,13 @@ final class RecordingStore {
             try? FileManager.default.removeItem(at: rec.dir)
             Log.info("Purged \(rec.folder) from Recently Deleted (past 30-day window)")
         }
-        if !purge.isEmpty { entries.removeAll { rec in purge.contains { $0.id == rec.id } } }
+        if !purge.isEmpty {
+            entries.removeAll { rec in purge.contains { $0.id == rec.id } }
+            changed = true
+        }
+        // Only write when something actually changed: an unconditional save here ran
+        // on every launch, and would clobber the journal after a failed load.
+        guard changed else { return }
         save()
         regenerateIndex()
     }
@@ -404,7 +412,15 @@ final class RecordingStore {
     }
 
     private func load() {
-        guard let data = try? Data(contentsOf: Paths.journal) else { return }
+        // Only a *missing* journal means a first run. A journal that exists but can't
+        // be read (I/O error, permissions blip) must take the backup path below - the
+        // old code treated it as first-run, and the unconditional save() later in the
+        // launch sequence would then overwrite the good journal with an empty list.
+        guard FileManager.default.fileExists(atPath: Paths.journal.path) else { return }
+        guard let data = try? Data(contentsOf: Paths.journal) else {
+            backupUnreadableJournal(reason: "read failed")
+            return
+        }
         if let recs = try? Self.decoder.decode([Recording].self, from: data) {
             entries = recs
         } else if let legacy = try? Self.decoder.decode([LegacyRecording].self, from: data) {
@@ -412,14 +428,18 @@ final class RecordingStore {
             save()
             Log.info("Migrated \(entries.count) recording(s) to the folder layout")
         } else {
-            // Starting with an empty list means the next save() would overwrite the
-            // unreadable journal and lose every recording's metadata for good. Keep a
-            // copy aside so it can still be inspected and recovered by hand.
-            let backup = Paths.appSupport.appendingPathComponent("journal.unreadable.json")
-            try? FileManager.default.removeItem(at: backup)
-            try? FileManager.default.copyItem(at: Paths.journal, to: backup)
-            Log.error("Failed to read journal (unrecognized format); copied to \(backup.lastPathComponent)")
+            backupUnreadableJournal(reason: "unrecognized format")
         }
+    }
+
+    /// Starting with an empty list means the next save() would overwrite the
+    /// unreadable journal and lose every recording's metadata for good. Keep a
+    /// copy aside so it can still be inspected and recovered by hand.
+    private func backupUnreadableJournal(reason: String) {
+        let backup = Paths.appSupport.appendingPathComponent("journal.unreadable.json")
+        try? FileManager.default.removeItem(at: backup)
+        try? FileManager.default.copyItem(at: Paths.journal, to: backup)
+        Log.error("Failed to read journal (\(reason)); copied to \(backup.lastPathComponent)")
     }
 
     func save() {
