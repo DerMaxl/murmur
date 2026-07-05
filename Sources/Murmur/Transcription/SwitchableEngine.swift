@@ -54,7 +54,11 @@ final class SwitchableEngine: TranscriptionEngine {
         await parakeet.setReadinessHandler(handler)
     }
 
-    func previewTail(fileAt url: URL, window: TimeInterval) async -> String? {
-        await current.previewTail(fileAt: url, window: window)
+    func livePartial(fileAt url: URL) async -> String? {
+        await current.livePartial(fileAt: url)
+    }
+
+    func liveDiscard(fileAt url: URL) async {
+        await current.liveDiscard(fileAt: url)
     }
 }

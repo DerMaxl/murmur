@@ -101,10 +101,20 @@ actor ParakeetEngine: TranscriptionEngine {
 
     func transcribe(fileAt url: URL,
                     onPartial: (@Sendable (String) -> Void)?) async throws -> Transcript {
+        // Consume any live-preview session up front (even if prepare() throws below,
+        // it must not linger for a URL that's about to be deleted or moved).
+        let liveState = liveSessions.removeValue(forKey: url)
         try await prepare()
         // Count idle from when this transcription finishes, however it exits.
         defer { scheduleIdleUnload() }
         guard let asr, let vad else { throw EngineError.notPrepared }
+
+        // The preview already transcribed the finalized part of this dictation while
+        // it was being recorded; finish only the remainder instead of starting over.
+        if let liveState {
+            return try await finishLiveSession(liveState, url: url, asr: asr, vad: vad,
+                                               onPartial: onPartial)
+        }
 
         // Recordings are 16 kHz mono (the recorder's format), which VAD and ASR
         // consume directly. For anything else (e.g. an imported MP3), fall back to
@@ -147,39 +157,113 @@ actor ParakeetEngine: TranscriptionEngine {
         return Transcript(text: cumulative, segments: pieces)
     }
 
-    /// Live-preview pass over the trailing `window` seconds of a growing recording.
-    /// The CAF stays readable mid-write (the same property crash recovery relies on),
-    /// so we re-read the file, transcribe just the tail, and let the caller show it.
-    /// Bounding the work to the tail keeps each tick's cost constant no matter how
-    /// long the dictation runs; the accurate full pass still happens at the end.
-    func previewTail(fileAt url: URL, window: TimeInterval) async -> String? {
+    // MARK: Live preview (incremental session over a growing file)
+
+    /// Per-file live-transcription state: everything before `base` has been VAD-
+    /// segmented, transcribed once, and folded into `text`/`segments` (absolute
+    /// times). Each preview tick only re-transcribes the still-open tail, and the
+    /// final `transcribe(fileAt:)` consumes this so the dictation isn't transcribed
+    /// twice.
+    private struct LiveState {
+        var base = 0                                // absolute sample index of the unconsumed suffix
+        var text = ""                               // finalized transcript so far
+        var segments: [Transcript.Segment] = []     // finalized, absolute times
+    }
+    private var liveSessions: [URL: LiveState] = [:]
+
+    /// A trailing VAD segment is treated as still-open (re-transcribed next tick
+    /// instead of finalized) when it ends within this margin of the file's current
+    /// end - it was cut off by the read, not closed by a real silence gap.
+    private static let liveOpenTailMargin = Int(1.5 * 16_000)
+
+    /// One preview tick: read the file (a CAF stays readable mid-write - the same
+    /// property crash recovery relies on), finalize any speech segments that ended,
+    /// and return finalized text plus a rough take on the open tail. Work per tick is
+    /// bounded: closed segments are transcribed exactly once, and the open tail is
+    /// capped by VAD's ~14 s max-chunk length no matter how long you talk.
+    func livePartial(fileAt url: URL) async -> String? {
         do {
             try await prepare()
             defer { scheduleIdleUnload() }
             guard let asr, let vad else { return nil }
 
+            var state = liveSessions[url] ?? LiveState()
             let (samples, sampleRate, _) = try AudioSamples.read(url)
-            guard sampleRate == 16_000, !samples.isEmpty else { return nil }
-            let tailLength = Int(window * 16_000)
-            let tail = samples.count > tailLength ? Array(samples.suffix(tailLength)) : samples
-
-            let segments = try await vad.segmentSpeech(tail, config: Self.segmentation)
-            guard !segments.isEmpty else { return nil }
-
-            var pieces: [String] = []
-            for seg in segments {
-                let start = max(0, seg.startSample(sampleRate: 16_000))
-                let end = min(tail.count, seg.endSample(sampleRate: 16_000))
-                guard end > start else { continue }
-                var state = try TdtDecoderState()
-                let result = try await asr.transcribe(Array(tail[start..<end]),
-                                                      decoderState: &state, language: nil)
-                let text = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !text.isEmpty { pieces.append(text) }
+            guard sampleRate == 16_000, samples.count > state.base else {
+                return state.text.isEmpty ? nil : state.text
             }
-            return pieces.isEmpty ? nil : pieces.joined(separator: " ")
+            let suffix = Array(samples[state.base...])
+            let segments = try await vad.segmentSpeech(suffix, config: Self.segmentation)
+
+            var volatileText = ""
+            var consumed = 0   // suffix-relative end of the last finalized segment
+            for (index, seg) in segments.enumerated() {
+                let start = max(0, seg.startSample(sampleRate: 16_000))
+                let end = min(suffix.count, seg.endSample(sampleRate: 16_000))
+                guard end > start else { continue }
+                var decoder = try TdtDecoderState()
+                let result = try await asr.transcribe(Array(suffix[start..<end]),
+                                                      decoderState: &decoder, language: nil)
+                let text = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                let isOpenTail = index == segments.count - 1
+                    && end > suffix.count - Self.liveOpenTailMargin
+                if isOpenTail {
+                    volatileText = text
+                } else {
+                    if !text.isEmpty {
+                        state.segments.append(Transcript.Segment(
+                            start: Double(state.base + start) / 16_000,
+                            end: Double(state.base + end) / 16_000,
+                            text: text))
+                        state.text += state.text.isEmpty ? text : " " + text
+                    }
+                    consumed = end
+                }
+            }
+            state.base += consumed
+            // A cancelled tick (the dictation ended mid-read) must not resurrect the
+            // session that finish/discard is about to consume or drop.
+            guard !Task.isCancelled else { return nil }
+            liveSessions[url] = state
+
+            let combined = [state.text, volatileText].filter { !$0.isEmpty }.joined(separator: " ")
+            return combined.isEmpty ? nil : combined
         } catch {
             return nil   // best-effort: a failed preview tick just shows nothing new
         }
+    }
+
+    func liveDiscard(fileAt url: URL) {
+        liveSessions.removeValue(forKey: url)
+    }
+
+    /// Finish a live session: transcribe only what the preview ticks hadn't
+    /// finalized yet and stitch it onto the cached result.
+    private func finishLiveSession(_ state: LiveState, url: URL,
+                                   asr: AsrManager, vad: VadManager,
+                                   onPartial: (@Sendable (String) -> Void)?) async throws -> Transcript {
+        var text = state.text
+        var pieces = state.segments
+        let (samples, sampleRate, _) = try AudioSamples.read(url)
+        if sampleRate == 16_000, samples.count > state.base {
+            let suffix = Array(samples[state.base...])
+            let segments = try await vad.segmentSpeech(suffix, config: Self.segmentation)
+            for seg in segments {
+                let start = max(0, seg.startSample(sampleRate: 16_000))
+                let end = min(suffix.count, seg.endSample(sampleRate: 16_000))
+                guard end > start else { continue }
+                var decoder = try TdtDecoderState()
+                let result = try await asr.transcribe(Array(suffix[start..<end]),
+                                                      decoderState: &decoder, language: nil)
+                let chunk = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !chunk.isEmpty else { continue }
+                pieces.append(Transcript.Segment(start: Double(state.base + start) / 16_000,
+                                                 end: Double(state.base + end) / 16_000,
+                                                 text: chunk))
+                text += text.isEmpty ? chunk : " " + chunk
+                onPartial?(text)
+            }
+        }
+        return Transcript(text: text, segments: pieces)
     }
 }

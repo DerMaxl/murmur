@@ -21,7 +21,7 @@ final class RecordingHUD {
     private var isPreviewShown = false
 
     private static let compactSize = NSSize(width: 168, height: 44)
-    private static let previewSize = NSSize(width: 440, height: 72)
+    private static let previewSize = NSSize(width: 420, height: 64)
     private var startDate: Date?
     private var lastShownSecond = -1
     private var latestLevel: CGFloat = 0
@@ -74,7 +74,14 @@ final class RecordingHUD {
         previewLabel.textColor = NSColor.white.withAlphaComponent(0.92)
         previewLabel.alignment = .left
         previewLabel.lineBreakMode = .byTruncatingHead
+        previewLabel.usesSingleLineMode = true
         previewLabel.maximumNumberOfLines = 1
+        // The text must never drive layout: without lowering these, the label's
+        // intrinsic width (which grows with every word) overrules the pinned edges
+        // and AppKit resizes the *panel* to satisfy it - the HUD kept growing as
+        // you talked. Low priorities make it truncate inside the fixed panel instead.
+        previewLabel.setContentCompressionResistancePriority(NSLayoutConstraint.Priority(1), for: .horizontal)
+        previewLabel.setContentHuggingPriority(NSLayoutConstraint.Priority(1), for: .horizontal)
         previewLabel.translatesAutoresizingMaskIntoConstraints = false
         previewLabel.isHidden = true
 
@@ -83,13 +90,16 @@ final class RecordingHUD {
         background.addSubview(statusLabel)
         background.addSubview(previewLabel)
         NSLayoutConstraint.activate([
-            // Meter row pinned to the bottom: in the compact pill it's vertically
-            // centered by the margins; in preview mode the text line sits above it.
-            meter.leadingAnchor.constraint(equalTo: background.leadingAnchor, constant: 12),
-            meter.bottomAnchor.constraint(equalTo: background.bottomAnchor, constant: -10),
+            // Meter + timer form a fixed-size cluster (94 + 10 + 40 pt) centered
+            // horizontally and pinned to the bottom. In the compact pill this lands
+            // exactly on the classic layout (12 pt side margins); in the wider
+            // preview panel the cluster stays its natural size, centered, instead
+            // of the meter's bars stretching to fill the width.
+            meter.widthAnchor.constraint(equalToConstant: 94),
             meter.heightAnchor.constraint(equalToConstant: 24),
-            meter.trailingAnchor.constraint(equalTo: timeLabel.leadingAnchor, constant: -10),
-            timeLabel.trailingAnchor.constraint(equalTo: background.trailingAnchor, constant: -12),
+            meter.centerXAnchor.constraint(equalTo: background.centerXAnchor, constant: -25),
+            meter.bottomAnchor.constraint(equalTo: background.bottomAnchor, constant: -10),
+            timeLabel.leadingAnchor.constraint(equalTo: meter.trailingAnchor, constant: 10),
             timeLabel.centerYAnchor.constraint(equalTo: meter.centerYAnchor),
             timeLabel.widthAnchor.constraint(equalToConstant: 40),
             statusLabel.centerXAnchor.constraint(equalTo: background.centerXAnchor),

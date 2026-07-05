@@ -30,17 +30,24 @@ protocol TranscriptionEngine: Sendable {
     /// "Transcribing" message. Default: never fires (engines that are always ready).
     func setReadinessHandler(_ handler: @escaping @Sendable (Bool) -> Void) async
 
-    /// Best-effort transcription of the trailing `window` seconds of a file that is
-    /// *still being written*, for the live dictation preview. The result is a rough
-    /// draft (the accurate pass still runs when the dictation ends). Returns nil on
+    /// One live-preview tick over a file that is *still being written*: returns the
+    /// cumulative transcript so far (finalized speech plus a rough take on the still-
+    /// open tail). Engines keep per-file session state so already-finished speech is
+    /// transcribed only once - and a later `transcribe(fileAt:)` on the same URL
+    /// consumes that state instead of re-transcribing from scratch. Returns nil on
     /// any problem or for engines that can't do it - callers just show no preview.
-    func previewTail(fileAt url: URL, window: TimeInterval) async -> String?
+    func livePartial(fileAt url: URL) async -> String?
+
+    /// Drop any live-preview session for `url` without transcribing (the dictation
+    /// was cancelled). Default no-op.
+    func liveDiscard(fileAt url: URL) async
 }
 
 extension TranscriptionEngine {
     func prewarm() async -> Bool { true }
     func setReadinessHandler(_ handler: @escaping @Sendable (Bool) -> Void) async {}
-    func previewTail(fileAt url: URL, window: TimeInterval) async -> String? { nil }
+    func livePartial(fileAt url: URL) async -> String? { nil }
+    func liveDiscard(fileAt url: URL) async {}
 }
 
 /// Result of a transcription. Segments carry per-utterance timing (for SRT export

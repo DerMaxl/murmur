@@ -337,10 +337,11 @@ final class DictationController {
 
     // MARK: Live preview
 
-    /// While recording (and the setting is on), re-transcribe the trailing seconds of
-    /// the growing capture on a short cadence and surface the text via `onPreview`.
+    /// While recording (and the setting is on), run the engine's incremental live
+    /// session on a short cadence and surface the cumulative text via `onPreview`.
     /// Self-pacing: the next tick only starts after the previous transcription
-    /// finished, so a slow model load can't queue up work.
+    /// finished, so a slow model load can't queue up work. The session's work is
+    /// reused by the final transcription when the dictation ends.
     private var previewTask: Task<Void, Never>?
 
     private func startPreviewLoopIfEnabled(url: URL, id: Int) {
@@ -351,7 +352,7 @@ final class DictationController {
                 try? await Task.sleep(for: .milliseconds(1200))
                 guard !Task.isCancelled, let self,
                       self.phase != .idle, self.captureID == id else { return }
-                guard let text = await engine.previewTail(fileAt: url, window: 15) else { continue }
+                guard let text = await engine.livePartial(fileAt: url) else { continue }
                 guard !Task.isCancelled, self.phase != .idle, self.captureID == id else { return }
                 self.onPreview?(text)
             }
@@ -385,7 +386,11 @@ final class DictationController {
         if startInFlight {
             endRequest = .abort   // the start Task tears it down once the engine comes up
         } else {
-            Task { await recorder?.stopAsync(); try? FileManager.default.removeItem(at: url) }
+            Task { [engine] in
+                await recorder?.stopAsync()
+                await engine.liveDiscard(fileAt: url)   // drop any live-preview session
+                try? FileManager.default.removeItem(at: url)
+            }
         }
         onStateChange?()
         Log.info("Dictation cancelled (trigger used as a modifier)")
