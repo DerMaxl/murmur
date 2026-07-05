@@ -23,6 +23,17 @@ The four core capabilities and the polish around them are done and released:
   alone), auto-copy to clipboard, sound effects, menu-bar/Dock visibility modes, launch
   at login, window zoom, brand palette + icon.
 - **Automatic updates** via Sparkle (background, silent), plus a Check for Updates item.
+- **Data-safety hardening**: an engine failure can no longer delete a meeting's audio
+  (marked failed + retryable, and UI retries use the two-track path); a failed
+  dictation keeps its audio as a retryable History entry; sustained write failures
+  (disk full) surface a HUD warning; the journal survives read failures at launch;
+  quitting mid-dictation restores the ducked volume.
+- **Lighter when idle**: speech/diarization models unload after ~10 min unused
+  (setting, default on) and reload from the CoreML cache in seconds; chord hotkeys
+  register through Carbon instead of an active event tap, so idle Murmur does zero
+  per-keystroke work (and the meeting hotkey no longer needs Accessibility).
+- **Live dictation preview** (setting, default off): the trailing seconds are
+  re-transcribed on a short cadence and shown in the HUD while you speak.
 
 ## Known issues
 
