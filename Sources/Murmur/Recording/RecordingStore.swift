@@ -287,6 +287,33 @@ final class RecordingStore {
         return id
     }
 
+    /// Adopt a dictation whose transcription failed: move the captured temp audio into
+    /// a recording folder and journal it as a retryable `.failed` entry, so the speech
+    /// isn't lost. The launch retry (or a manual retry from History) transcribes it
+    /// like any recording. Returns nil when the audio couldn't be moved.
+    func adoptFailedDictation(audioAt url: URL, duration: TimeInterval,
+                              targetApp: String? = nil) -> Recording? {
+        let id = UUIDv7.generate()
+        let folder = Self.folderName(for: id)
+        var rec = Recording(id: id, folder: folder,
+                            startedAt: Date().addingTimeInterval(-duration),
+                            finishedAt: Date(), status: .finished, source: .dictation,
+                            transcription: .failed)
+        rec.durationSeconds = duration
+        rec.sourceApp = targetApp
+        makeFolder(for: rec)
+        do {
+            try FileManager.default.moveItem(at: url, to: rec.url)
+        } catch {
+            Log.error("Couldn't preserve failed dictation audio: \(error.localizedDescription)")
+            return nil
+        }
+        entries.append(rec)
+        save()
+        regenerateIndex()
+        return rec
+    }
+
     func recording(_ id: UUID) -> Recording? {
         entries.first { $0.id == id }
     }

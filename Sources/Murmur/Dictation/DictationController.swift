@@ -77,6 +77,10 @@ final class DictationController {
     var onTranscript: (@MainActor (String, TimeInterval, String?) -> Void)?
     /// A brief transient message for the HUD, e.g. when a recording couldn't start.
     var onNotice: (@MainActor (String) -> Void)?
+    /// The capture succeeded but its transcription failed. Hands over the audio file
+    /// (ownership transfers to the callee) so the speech can be preserved and retried
+    /// instead of lost.
+    var onTranscriptionFailed: (@MainActor (URL, TimeInterval, String?) -> Void)?
 
     init(engine: TranscriptionEngine) {
         self.engine = engine
@@ -417,7 +421,6 @@ final class DictationController {
     /// saved. Runs the model off the main actor; clears the finishing state when done.
     private func transcribeAndInject(url: URL, duration: TimeInterval, targetApp: String?) {
         Task { [engine, weak self] in
-            defer { try? FileManager.default.removeItem(at: url) }
             do {
                 let transcript = try await engine.transcribe(fileAt: url, onPartial: nil)
                 let cleaned = TextCleaner.process(transcript.text)
@@ -431,8 +434,20 @@ final class DictationController {
                         self?.onTranscript?(text, duration, targetApp)
                     }
                 }
+                // Success (or genuine silence): dictations are text-only, discard the audio.
+                try? FileManager.default.removeItem(at: url)
             } catch {
+                // The speech is on disk and retryable - hand it over rather than delete
+                // it (losing a dictation to a transient engine failure breaks the app's
+                // "your recording is always saved" rule).
                 Log.error("Dictation transcription failed: \(error.localizedDescription)")
+                await MainActor.run {
+                    if let self, let handler = self.onTranscriptionFailed {
+                        handler(url, duration, targetApp)
+                    } else {
+                        try? FileManager.default.removeItem(at: url)
+                    }
+                }
             }
             await MainActor.run {
                 self?.isFinishing = false

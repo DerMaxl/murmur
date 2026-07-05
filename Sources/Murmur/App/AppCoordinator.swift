@@ -44,8 +44,21 @@ final class AppCoordinator {
             self?.saveDictation(text: text, duration: duration, targetApp: targetApp)
         }
         d.onNotice = { [weak self] message in self?.onNotice?(message) }
+        d.onTranscriptionFailed = { [weak self] url, duration, targetApp in
+            self?.preserveFailedDictation(audioAt: url, duration: duration, targetApp: targetApp)
+        }
         return d
     }()
+
+    /// A dictation was captured but its transcription failed: keep the audio as a
+    /// retryable History entry so the speech isn't lost. The launch retry also picks
+    /// it up (any non-done recording with audio is re-enqueued).
+    private func preserveFailedDictation(audioAt url: URL, duration: TimeInterval, targetApp: String?) {
+        guard store.adoptFailedDictation(audioAt: url, duration: duration,
+                                         targetApp: targetApp) != nil else { return }
+        onStateChange?()
+        onNotice?("Transcription failed — audio saved to History")
+    }
 
     /// Fired whenever recording starts or stops, so the UI can refresh, including
     /// after the asynchronous microphone-permission prompt resolves.
