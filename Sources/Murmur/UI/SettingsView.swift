@@ -28,6 +28,7 @@ struct SettingsView: View {
                     ForEach(DictationMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
                 }
                 Toggle("Mute audio while dictating", isOn: $model.pauseMusicWhileDictating)
+                Toggle("Show words live while you speak", isOn: $model.liveDictationPreview)
             } header: {
                 Text("Dictation")
             } footer: {

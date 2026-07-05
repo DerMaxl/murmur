@@ -50,6 +50,7 @@ final class AppCoordinator {
         d.onTranscriptionFailed = { [weak self] url, duration, targetApp in
             self?.preserveFailedDictation(audioAt: url, duration: duration, targetApp: targetApp)
         }
+        d.onPreview = { [weak self] text in self?.onDictationPreview?(text) }
         return d
     }()
 
@@ -72,6 +73,10 @@ final class AppCoordinator {
 
     /// A brief transient message to surface (e.g. a recording that couldn't start).
     var onNotice: (@MainActor (String) -> Void)?
+
+    /// Rough live text of the current dictation, for the HUD's preview line (only
+    /// fires while dictating with `Settings.liveDictationPreview` on).
+    var onDictationPreview: (@MainActor (String) -> Void)?
 
     /// True while a meeting is being set up (the audio engine/tap start off the main
     /// thread), before it's actually recording.

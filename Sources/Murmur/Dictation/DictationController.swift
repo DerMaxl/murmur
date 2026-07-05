@@ -81,6 +81,9 @@ final class DictationController {
     /// (ownership transfers to the callee) so the speech can be preserved and retried
     /// instead of lost.
     var onTranscriptionFailed: (@MainActor (URL, TimeInterval, String?) -> Void)?
+    /// Rough live-preview text of the trailing seconds of the current dictation, for
+    /// the HUD (see `Settings.liveDictationPreview`).
+    var onPreview: (@MainActor (String) -> Void)?
 
     init(engine: TranscriptionEngine) {
         self.engine = engine
@@ -327,6 +330,30 @@ final class DictationController {
                 try? FileManager.default.removeItem(at: url)
             case .none:
                 Sounds.recordingStarted()   // recording is live
+                self.startPreviewLoopIfEnabled(url: url, id: id)
+            }
+        }
+    }
+
+    // MARK: Live preview
+
+    /// While recording (and the setting is on), re-transcribe the trailing seconds of
+    /// the growing capture on a short cadence and surface the text via `onPreview`.
+    /// Self-pacing: the next tick only starts after the previous transcription
+    /// finished, so a slow model load can't queue up work.
+    private var previewTask: Task<Void, Never>?
+
+    private func startPreviewLoopIfEnabled(url: URL, id: Int) {
+        guard Settings.liveDictationPreview else { return }
+        previewTask?.cancel()
+        previewTask = Task { [weak self, engine] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(1200))
+                guard !Task.isCancelled, let self,
+                      self.phase != .idle, self.captureID == id else { return }
+                guard let text = await engine.previewTail(fileAt: url, window: 15) else { continue }
+                guard !Task.isCancelled, self.phase != .idle, self.captureID == id else { return }
+                self.onPreview?(text)
             }
         }
     }
@@ -341,6 +368,8 @@ final class DictationController {
         pressedAt = nil
         latched = false
         recorder = nil   // release the stopped recorder (and its engine) between captures
+        previewTask?.cancel()
+        previewTask = nil
     }
 
     /// Stop and discard an in-progress dictation: no transcription, no injection. Used

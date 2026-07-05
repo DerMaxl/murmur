@@ -109,6 +109,15 @@ enum Settings {
         set { UserDefaults.standard.set(newValue, forKey: "labelSpeakers") }
     }
 
+    /// Show a live text preview in the HUD while dictating: the trailing seconds of
+    /// audio are re-transcribed on a short cadence so you can see the words landing.
+    /// Costs extra Neural Engine work for the duration of a dictation, so it's
+    /// opt-in. Default off.
+    static var liveDictationPreview: Bool {
+        get { UserDefaults.standard.object(forKey: "liveDictationPreview") as? Bool ?? false }
+        set { UserDefaults.standard.set(newValue, forKey: "liveDictationPreview") }
+    }
+
     /// Free the speech/diarization models after ~10 minutes without a transcription
     /// (they keep several hundred MB resident). The next use reloads them from the
     /// compiled CoreML cache, which takes a few seconds. Default on.

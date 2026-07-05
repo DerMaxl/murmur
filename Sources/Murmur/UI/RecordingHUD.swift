@@ -15,6 +15,13 @@ final class RecordingHUD {
     private let meter = LevelMeterView()
     private let timeLabel = NSTextField(labelWithString: "0:00")
     private let statusLabel = NSTextField(labelWithString: "")
+    /// Live dictation preview (the trailing words being spoken). When it has text the
+    /// panel grows to a two-row layout; empty keeps the compact meter-only pill.
+    private let previewLabel = NSTextField(labelWithString: "")
+    private var isPreviewShown = false
+
+    private static let compactSize = NSSize(width: 168, height: 44)
+    private static let previewSize = NSSize(width: 440, height: 72)
     private var startDate: Date?
     private var lastShownSecond = -1
     private var latestLevel: CGFloat = 0
@@ -28,7 +35,7 @@ final class RecordingHUD {
     private var noticeHideWork: DispatchWorkItem?
 
     init() {
-        let size = NSSize(width: 168, height: 44)
+        let size = Self.compactSize
         panel = NSPanel(contentRect: NSRect(origin: .zero, size: size),
                         styleMask: [.borderless, .nonactivatingPanel],
                         backing: .buffered, defer: true)
@@ -47,6 +54,7 @@ final class RecordingHUD {
         background.wantsLayer = true
         background.layer?.cornerRadius = 12
         background.layer?.masksToBounds = true
+        background.autoresizingMask = [.width, .height]   // track panel resizes (preview mode)
 
         timeLabel.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
         timeLabel.textColor = .white
@@ -61,20 +69,35 @@ final class RecordingHUD {
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         statusLabel.isHidden = true
 
+        // Head-truncated single line, so the *newest* words stay visible as you talk.
+        previewLabel.font = .systemFont(ofSize: 12)
+        previewLabel.textColor = NSColor.white.withAlphaComponent(0.92)
+        previewLabel.alignment = .left
+        previewLabel.lineBreakMode = .byTruncatingHead
+        previewLabel.maximumNumberOfLines = 1
+        previewLabel.translatesAutoresizingMaskIntoConstraints = false
+        previewLabel.isHidden = true
+
         background.addSubview(meter)
         background.addSubview(timeLabel)
         background.addSubview(statusLabel)
+        background.addSubview(previewLabel)
         NSLayoutConstraint.activate([
+            // Meter row pinned to the bottom: in the compact pill it's vertically
+            // centered by the margins; in preview mode the text line sits above it.
             meter.leadingAnchor.constraint(equalTo: background.leadingAnchor, constant: 12),
-            meter.centerYAnchor.constraint(equalTo: background.centerYAnchor),
+            meter.bottomAnchor.constraint(equalTo: background.bottomAnchor, constant: -10),
             meter.heightAnchor.constraint(equalToConstant: 24),
             meter.trailingAnchor.constraint(equalTo: timeLabel.leadingAnchor, constant: -10),
             timeLabel.trailingAnchor.constraint(equalTo: background.trailingAnchor, constant: -12),
-            timeLabel.centerYAnchor.constraint(equalTo: background.centerYAnchor),
+            timeLabel.centerYAnchor.constraint(equalTo: meter.centerYAnchor),
             timeLabel.widthAnchor.constraint(equalToConstant: 40),
             statusLabel.centerXAnchor.constraint(equalTo: background.centerXAnchor),
             statusLabel.centerYAnchor.constraint(equalTo: background.centerYAnchor),
             statusLabel.leadingAnchor.constraint(greaterThanOrEqualTo: background.leadingAnchor, constant: 10),
+            previewLabel.leadingAnchor.constraint(equalTo: background.leadingAnchor, constant: 12),
+            previewLabel.trailingAnchor.constraint(equalTo: background.trailingAnchor, constant: -12),
+            previewLabel.topAnchor.constraint(equalTo: background.topAnchor, constant: 8),
         ])
         panel.contentView = background
     }
@@ -86,6 +109,7 @@ final class RecordingHUD {
         meter.isHidden = false
         timeLabel.isHidden = false
         statusLabel.isHidden = true
+        clearPreview()
         meter.reset()
         latestLevel = 0
         timeLabel.stringValue = "0:00"
@@ -104,6 +128,7 @@ final class RecordingHUD {
         meter.isHidden = true
         timeLabel.isHidden = true
         statusLabel.isHidden = false
+        clearPreview()
         ensureVisible()
     }
 
@@ -113,6 +138,7 @@ final class RecordingHUD {
     func showNotice(_ message: String, duration: TimeInterval = 2.2) {
         processingMessage = nil
         startDate = nil
+        clearPreview()
         meter.isHidden = true
         timeLabel.isHidden = true
         statusLabel.isHidden = false
@@ -132,6 +158,7 @@ final class RecordingHUD {
         timer = nil
         startDate = nil
         processingMessage = nil
+        clearPreview()
         if let activity {
             ProcessInfo.processInfo.endActivity(activity)
             self.activity = nil
@@ -163,6 +190,29 @@ final class RecordingHUD {
     /// Store the newest loudness; the timer turns it into animation frames.
     func push(level: Float) {
         latestLevel = CGFloat(max(0, min(1, level)))
+    }
+
+    /// Show the live dictation preview line, growing the panel on first text. Only
+    /// applies while recording (a late tick after the switch to processing is ignored).
+    func push(preview: String) {
+        guard startDate != nil, processingMessage == nil else { return }
+        let text = preview.trimmingCharacters(in: .whitespacesAndNewlines)
+        previewLabel.stringValue = text
+        guard !text.isEmpty, !isPreviewShown else { return }
+        isPreviewShown = true
+        previewLabel.isHidden = false
+        panel.setContentSize(Self.previewSize)
+        positionBottomCenter()
+        panel.contentView?.display()
+    }
+
+    private func clearPreview() {
+        guard isPreviewShown || !previewLabel.stringValue.isEmpty else { return }
+        isPreviewShown = false
+        previewLabel.isHidden = true
+        previewLabel.stringValue = ""
+        panel.setContentSize(Self.compactSize)
+        positionBottomCenter()
     }
 
     private func tick() {

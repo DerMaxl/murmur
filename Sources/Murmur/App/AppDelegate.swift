@@ -51,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         coordinator.onAudioLevel = { [weak self] level in self?.hud.push(level: level) }
         coordinator.onNotice = { [weak self] message in self?.hud.showNotice(message) }
+        coordinator.onDictationPreview = { [weak self] text in self?.hud.push(preview: text) }
         // Let the updater defer installing while a recording is in progress. This must
         // also cover a dictation that is *finishing* (recorded, still transcribing -
         // releasing the key fires onStateChange with isDictating already false, which

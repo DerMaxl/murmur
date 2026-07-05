@@ -146,4 +146,40 @@ actor ParakeetEngine: TranscriptionEngine {
 
         return Transcript(text: cumulative, segments: pieces)
     }
+
+    /// Live-preview pass over the trailing `window` seconds of a growing recording.
+    /// The CAF stays readable mid-write (the same property crash recovery relies on),
+    /// so we re-read the file, transcribe just the tail, and let the caller show it.
+    /// Bounding the work to the tail keeps each tick's cost constant no matter how
+    /// long the dictation runs; the accurate full pass still happens at the end.
+    func previewTail(fileAt url: URL, window: TimeInterval) async -> String? {
+        do {
+            try await prepare()
+            defer { scheduleIdleUnload() }
+            guard let asr, let vad else { return nil }
+
+            let (samples, sampleRate, _) = try AudioSamples.read(url)
+            guard sampleRate == 16_000, !samples.isEmpty else { return nil }
+            let tailLength = Int(window * 16_000)
+            let tail = samples.count > tailLength ? Array(samples.suffix(tailLength)) : samples
+
+            let segments = try await vad.segmentSpeech(tail, config: Self.segmentation)
+            guard !segments.isEmpty else { return nil }
+
+            var pieces: [String] = []
+            for seg in segments {
+                let start = max(0, seg.startSample(sampleRate: 16_000))
+                let end = min(tail.count, seg.endSample(sampleRate: 16_000))
+                guard end > start else { continue }
+                var state = try TdtDecoderState()
+                let result = try await asr.transcribe(Array(tail[start..<end]),
+                                                      decoderState: &state, language: nil)
+                let text = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !text.isEmpty { pieces.append(text) }
+            }
+            return pieces.isEmpty ? nil : pieces.joined(separator: " ")
+        } catch {
+            return nil   // best-effort: a failed preview tick just shows nothing new
+        }
+    }
 }

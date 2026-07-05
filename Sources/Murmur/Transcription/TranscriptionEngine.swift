@@ -29,11 +29,18 @@ protocol TranscriptionEngine: Sendable {
     /// (see `Settings.unloadModelsWhenIdle`). Drives the HUD's "Loading model" vs
     /// "Transcribing" message. Default: never fires (engines that are always ready).
     func setReadinessHandler(_ handler: @escaping @Sendable (Bool) -> Void) async
+
+    /// Best-effort transcription of the trailing `window` seconds of a file that is
+    /// *still being written*, for the live dictation preview. The result is a rough
+    /// draft (the accurate pass still runs when the dictation ends). Returns nil on
+    /// any problem or for engines that can't do it - callers just show no preview.
+    func previewTail(fileAt url: URL, window: TimeInterval) async -> String?
 }
 
 extension TranscriptionEngine {
     func prewarm() async -> Bool { true }
     func setReadinessHandler(_ handler: @escaping @Sendable (Bool) -> Void) async {}
+    func previewTail(fileAt url: URL, window: TimeInterval) async -> String? { nil }
 }
 
 /// Result of a transcription. Segments carry per-utterance timing (for SRT export
