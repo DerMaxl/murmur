@@ -41,20 +41,21 @@ The four core capabilities and the polish around them are done and released:
   Repro: join a Google Meet call in Safari (its mic is active — macOS shows the orange
   mic-in-use indicator), then start a dictation. The HUD appears and the recording runs,
   but the level meter stays flat and no text is produced. **TODO: make dictation capture
-  usable mic audio in this situation.** Measured facts (via temporary file logging in
-  `CrashSafeRecorder`, all on the built-in "MacBook Air Microphone"):
+  usable mic audio in this situation.** Measured facts (from a since-removed temporary
+  instrumentation pass, all on the built-in "MacBook Air Microphone"):
   - Normal dictation (no other app using the mic): input format `48000 Hz, 1 channel`;
     ~116021 frames captured over ~7 s; transcription works.
-  - Dictation during the call: `CrashSafeRecorder.inputDeviceInUse` (CoreAudio
-    `kAudioDevicePropertyDeviceIsRunningSomewhere`) returns `true`; input format is
-    `48000 Hz, **3 channels**`; frames are still captured (e.g. 95755, 40526), so buffers
-    do arrive — it is not a zero-callback case.
+  - Dictation during the call: CoreAudio `kAudioDevicePropertyDeviceIsRunningSomewhere`
+    returned `true`; input format was `48000 Hz, **3 channels**`; frames were still
+    captured (e.g. 95755, 40526), so buffers do arrive — it is not a zero-callback case.
   - In that 3-channel call state, the peak amplitude on **every** input channel was at the
     noise floor (measured `0.009, 0.009, 0.006`), i.e. all channels were effectively
     silent — the voice was not present on any channel Murmur received.
   - Observed when `setVoiceProcessingEnabled(true)` was enabled on Murmur's dictation input
     during the call: the audio device audibly reconfigured (the call's mic indicator briefly
     dropped and restarted) and the capture was still silent.
+  - Next experiment: capture via `AVCaptureSession` + `AVCaptureAudioDataOutput`
+    (designed for shared mic access) when the device is already running somewhere.
 
 ## Roadmap / ideas
 

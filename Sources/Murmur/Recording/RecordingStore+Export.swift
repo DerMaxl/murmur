@@ -2,7 +2,7 @@
 import Foundation
 
 /// Agent- and human-facing exports: a self-describing `transcript.md` per recording
-/// and a top-level `INDEX.md` manifest.
+/// and a top-level `index.yaml` manifest.
 extension RecordingStore {
     /// Give a finished recording a title and write its `transcript.md`, then refresh
     /// the manifest. Safe to call repeatedly (idempotent overwrite).

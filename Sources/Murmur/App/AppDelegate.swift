@@ -1,6 +1,7 @@
 import AppKit
 
-/// Menu-bar UI. A status item with a small menu; no dock icon, no windows yet.
+/// App lifecycle and status-item UI: the menu-bar item and its menu, the main
+/// window, the recording HUD, and the menu-bar/Dock visibility modes.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let coordinator = AppCoordinator()
@@ -94,7 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Files opened with Murmur (drag onto the app, "Open With", or `open -a`) are
-    /// imported and transcribed. No menu item - this is the seam a future UI uses.
+    /// imported and transcribed, same as dropping them on the Import view.
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls { coordinator.importFile(url) }
     }

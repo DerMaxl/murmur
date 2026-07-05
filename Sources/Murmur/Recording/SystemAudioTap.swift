@@ -36,9 +36,6 @@ final class SystemAudioTap {
     private var procID: AudioDeviceIOProcID?
     private let queue = DispatchQueue(label: "com.murmur.systemtap", qos: .userInitiated)
 
-    /// The tap's native format (typically 48 kHz stereo Float32). Available after start.
-    private(set) var format: AVAudioFormat?
-
     /// Begin capturing. `onBuffer` is invoked on a background queue with system audio.
     func start(onBuffer: @escaping @Sendable (AVAudioPCMBuffer) -> Void) throws {
         let description = CATapDescription(stereoGlobalTapButExcludeProcesses: [])
@@ -55,7 +52,6 @@ final class SystemAudioTap {
         do {
             var asbd = try Self.tapFormat(tap)
             guard let fmt = AVAudioFormat(streamDescription: &asbd) else { throw TapError.makeFormat }
-            format = fmt
 
             let outputUID = try Self.defaultOutputUID()
             let dict: [String: Any] = [
@@ -106,7 +102,6 @@ final class SystemAudioTap {
             AudioHardwareDestroyProcessTap(tapID)
             tapID = 0
         }
-        format = nil
     }
 
     deinit { stop() }

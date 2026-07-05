@@ -4,7 +4,7 @@ import Foundation
 ///
 /// On disk each recording is a self-contained folder under `Recordings/`:
 /// ```
-/// Recordings/2026-05-31-171530/
+/// Recordings/2026-05-31_171530/
 ///     audio.caf        the audio
 ///     transcript.md    YAML frontmatter + transcript (human- and agent-readable)
 /// ```
@@ -22,11 +22,10 @@ struct Recording: Codable, Identifiable, Sendable, Equatable {
         case failed      // transcription errored; can retry
     }
 
-    /// Where the audio came from. Drives how the transcript is exported (memos get a
-    /// plain body; meetings/imports get timestamped, eventually speaker-labelled,
-    /// segments).
+    /// Where the audio came from. Drives transcription routing (meetings get the
+    /// two-track interleaved path) and how the recording is displayed.
     enum Source: String, Codable, Sendable {
-        case memo
+        case memo       // legacy only: pre-meeting-era recordings; nothing creates these today
         case dictation
         case meeting
         case imported   // a file the user dropped in; we link to it, never copy it
@@ -250,7 +249,7 @@ final class RecordingStore {
             rec.transcript = text
             rec.transcription = .done
         }
-        finalizeAndExport(id)   // write transcript.md + refresh INDEX.md
+        finalizeAndExport(id)   // write transcript.md + refresh index.yaml
     }
 
     /// Update a meeting's detected source app (and its title) mid-recording.

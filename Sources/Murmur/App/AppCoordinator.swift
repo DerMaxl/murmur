@@ -184,7 +184,7 @@ final class AppCoordinator {
     // MARK: File import
 
     /// Import an audio file by linking to it (not copying) and transcribing it.
-    /// Intended for a future UI; for now it's driven by opening a file with the app.
+    /// Driven by the Import view and by opening a file with the app.
     func importFile(_ url: URL) {
         let rec = store.beginImport(originalURL: url)
         onStateChange?()
@@ -197,8 +197,8 @@ final class AppCoordinator {
         if isMeetingRecording { stopMeeting() } else { startMeeting() }
     }
 
-    /// Arm the Hyper+R meeting hotkey if Accessibility is granted (the chord needs
-    /// an active event tap). Silent and idempotent; the menu works regardless.
+    /// Arm the meeting hotkey (default ⌥⌘E) if Accessibility is granted (the chord
+    /// needs an active event tap). Silent and idempotent; the menu works regardless.
     func armMeetingHotkey() {
         guard !meetingHotkey.isRunning, AXIsProcessTrusted() else { return }
         _ = meetingHotkey.start()
@@ -496,14 +496,14 @@ final class AppCoordinator {
                 // Optional on-device AI polish (stutters / false starts), best-effort.
                 let text = await Polisher.polishIfEnabled(cleaned)
                 await MainActor.run {
-                    // setTranscript writes the final transcript.md + refreshes INDEX.md.
+                    // setTranscript writes the final transcript.md + refreshes index.yaml.
                     self.store.setTranscript(id, text: text)
                     self.onStateChange?()
                     self.onTranscriptionFinished(id, userInitiated: userInitiated)
                     Log.info("Transcribed \(folder): \(text.count) chars")
                 }
                 // Best-effort on-device summary (Apple Intelligence); updates the
-                // transcript.md + INDEX.md again when ready.
+                // transcript.md + index.yaml again when ready.
                 if let summary = await Summarizer.summarize(text) {
                     await MainActor.run {
                         self.store.setSummary(id, text: summary)

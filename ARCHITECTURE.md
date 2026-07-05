@@ -77,7 +77,8 @@ about it without joining across files:
 ```
 
 - `transcript.md` frontmatter: `id, title, summary, created, duration_seconds, source,
-  words, audio`. Meetings interleave speaker-labelled turns; dictations are saved
+  app, words`, plus `audio` (the captured file) or, for imports, `source_file` (the
+  linked original). Meetings interleave speaker-labelled turns; dictations are saved
   text-only (no audio).
 - Titles are derived offline from the first words; summaries are an optional one-liner
   from Apple's on-device model.
@@ -109,6 +110,10 @@ open dist/Murmur.app
 `make-cert.sh` is optional but recommended: without it the build signs ad-hoc, and
 macOS re-prompts for every permission on each rebuild. `scripts/release.sh` cuts a
 signed release (see Distribution below).
+
+For testing against throwaway data, set the `MURMUR_HOME` environment variable to
+redirect the journal and all recordings away from the real
+`~/Library/Application Support/Murmur`.
 
 ## Distribution and updates
 
