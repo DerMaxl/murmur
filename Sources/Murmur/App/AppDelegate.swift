@@ -51,10 +51,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         coordinator.onAudioLevel = { [weak self] level in self?.hud.push(level: level) }
         coordinator.onNotice = { [weak self] message in self?.hud.showNotice(message) }
-        // Let the updater defer installing while a recording is in progress.
+        // Let the updater defer installing while a recording is in progress. This must
+        // also cover a dictation that is *finishing* (recorded, still transcribing -
+        // releasing the key fires onStateChange with isDictating already false, which
+        // is exactly when a held update would otherwise install and relaunch, killing
+        // the in-flight transcription) and a meeting that is starting or tearing down.
         updater.isRecording = { [weak self] in
             guard let self else { return false }
-            return self.coordinator.isDictating || self.coordinator.isMeetingRecording
+            return self.coordinator.isDictating
+                || self.coordinator.isFinishingDictation
+                || self.coordinator.isMeetingActive
         }
         // Wire the Settings "Software updates" controls to the Sparkle updater. Set the
         // initial toggle value before assigning applyAutoUpdate, so seeding it doesn't
