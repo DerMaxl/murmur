@@ -7,8 +7,12 @@ import ApplicationServices
 @MainActor
 final class AppCoordinator {
     let store = RecordingStore()
-    private let engine: TranscriptionEngine = ParakeetEngine()
+    /// Routes to the engine picked in Settings (Parakeet / Apple SpeechAnalyzer).
+    private let engine = SwitchableEngine()
     private let diarizer = Diarizer()
+
+    /// Whether the Apple speech engine exists on this macOS (26+), for the settings UI.
+    var appleEngineAvailable: Bool { engine.appleEngineAvailable }
 
     private lazy var meeting: MeetingRecorder = {
         let m = MeetingRecorder()
@@ -142,6 +146,14 @@ final class AppCoordinator {
             engineReady = await engine.prewarm()
             onStateChange?()
         }
+    }
+
+    /// Called when the engine choice changes in Settings: warm the newly selected
+    /// engine (asset download / model load) so its first use isn't cold, and reset
+    /// readiness so the HUD messaging re-derives for the new engine.
+    func prewarmNewEngineChoice() {
+        engineReady = false
+        if dictation.isEnabled { prewarmEngine() }
     }
 
     var dictationMode: DictationMode { Settings.dictationMode }

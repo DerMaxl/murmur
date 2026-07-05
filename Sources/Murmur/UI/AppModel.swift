@@ -61,6 +61,16 @@ final class AppModel {
     var liveDictationPreview = Settings.liveDictationPreview {
         didSet { guard !refreshing else { return }; Settings.liveDictationPreview = liveDictationPreview; coordinator.onStateChange?() }
     }
+    var transcriptionEngine = Settings.transcriptionEngine {
+        didSet {
+            guard !refreshing, transcriptionEngine != Settings.transcriptionEngine else { return }
+            Settings.transcriptionEngine = transcriptionEngine
+            coordinator.prewarmNewEngineChoice()
+            coordinator.onStateChange?()
+        }
+    }
+    /// Whether the Apple engine can be offered at all (macOS 26+). Constant per launch.
+    var appleEngineAvailable: Bool { coordinator.appleEngineAvailable }
     var dictationEnabled = false {
         didSet {
             guard !refreshing, dictationEnabled != coordinator.dictationEnabled else { return }
@@ -125,6 +135,7 @@ final class AppModel {
         if labelSpeakers != Settings.labelSpeakers { labelSpeakers = Settings.labelSpeakers }
         if unloadModelsWhenIdle != Settings.unloadModelsWhenIdle { unloadModelsWhenIdle = Settings.unloadModelsWhenIdle }
         if liveDictationPreview != Settings.liveDictationPreview { liveDictationPreview = Settings.liveDictationPreview }
+        if transcriptionEngine != Settings.transcriptionEngine { transcriptionEngine = Settings.transcriptionEngine }
         if dictationEnabled != coordinator.dictationEnabled { dictationEnabled = coordinator.dictationEnabled }
         if dictationShortcut != Settings.dictationShortcut { dictationShortcut = Settings.dictationShortcut }
         if meetingShortcut != Settings.meetingShortcut { meetingShortcut = Settings.meetingShortcut }

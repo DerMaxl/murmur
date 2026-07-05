@@ -76,13 +76,21 @@ struct SettingsView: View {
             }
 
             Section {
-                LabeledContent("Speech-to-text model", value: "Parakeet TDT v3")
-                LabeledContent("Space it uses", value: StorageInfo.format(model.storage.model))
+                if model.appleEngineAvailable {
+                    Picker("Speech-to-text model", selection: $model.transcriptionEngine) {
+                        ForEach(EngineChoice.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                } else {
+                    LabeledContent("Speech-to-text model", value: "Parakeet TDT v3")
+                }
+                LabeledContent("Space Parakeet uses", value: StorageInfo.format(model.storage.model))
                 Toggle("Free model memory when idle", isOn: $model.unloadModelsWhenIdle)
             } header: {
                 Text("Transcription model")
             } footer: {
-                Text("Runs entirely on your Mac. Nothing is sent to the cloud. Understands German, English, Dutch and 22 more languages. Freeing memory unloads the model after about 10 minutes without a transcription; the next use takes a few seconds longer while it reloads.")
+                Text(model.transcriptionEngine == .appleSpeech
+                     ? "Apple's engine is built into macOS: nothing to download, and it uses no model memory inside Murmur. It transcribes in one language (your first supported system language) - switch back to Parakeet for automatic language detection across German, English, Dutch and 22 more. Everything runs on your Mac either way."
+                     : "Runs entirely on your Mac. Nothing is sent to the cloud. Understands German, English, Dutch and 22 more languages. Freeing memory unloads the model after about 10 minutes without a transcription; the next use takes a few seconds longer while it reloads.")
             }
 
             Section {

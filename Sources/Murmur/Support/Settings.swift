@@ -109,6 +109,15 @@ enum Settings {
         set { UserDefaults.standard.set(newValue, forKey: "labelSpeakers") }
     }
 
+    /// Which speech-to-text engine transcribes audio. Default Parakeet (multilingual
+    /// with automatic language detection); the Apple engine (macOS 26+) is built into
+    /// the OS - zero download and no model memory in Murmur - but transcribes in one
+    /// fixed language.
+    static var transcriptionEngine: EngineChoice {
+        get { EngineChoice(rawValue: UserDefaults.standard.string(forKey: "transcriptionEngine") ?? "") ?? .parakeet }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "transcriptionEngine") }
+    }
+
     /// Show a live text preview in the HUD while dictating: the trailing seconds of
     /// audio are re-transcribed on a short cadence so you can see the words landing.
     /// Costs extra Neural Engine work for the duration of a dictation, so it's
