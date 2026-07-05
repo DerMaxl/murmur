@@ -15,6 +15,9 @@ final class AppCoordinator {
         m.onLevel = { [weak self] level in
             Task { @MainActor in self?.onAudioLevel?(level) }
         }
+        m.onWriteFailure = { [weak self] in
+            Task { @MainActor in self?.onNotice?("Recording isn't being saved — check disk space") }
+        }
         return m
     }()
     private var currentMeeting: Recording?

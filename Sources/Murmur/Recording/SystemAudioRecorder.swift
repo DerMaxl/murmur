@@ -23,11 +23,21 @@ final class SystemAudioRecorder: @unchecked Sendable {
     /// after `stop()`.
     var didCaptureAudio: Bool { lock.lock(); defer { lock.unlock() }; return capturedAudio }
 
+    /// Fired (once per capture, from the audio thread) when buffers keep failing to
+    /// reach disk - e.g. the disk filled up. Set before `start()`.
+    var onWriteFailure: (@Sendable () -> Void)?
+    private var consecutiveWriteFailures = 0
+    private var warnedWriteFailure = false
+    private var loggedConvertError = false
+
     func start(writingTo url: URL) throws {
         lock.lock()
         defer { lock.unlock() }
         guard !isRecording else { return }
         capturedAudio = false
+        consecutiveWriteFailures = 0
+        warnedWriteFailure = false
+        loggedConvertError = false
 
         let target = CrashSafeRecorder.transcriptionFormat
         outputFile = try AVAudioFile(forWriting: url,
@@ -87,13 +97,28 @@ final class SystemAudioRecorder: @unchecked Sendable {
             outStatus.pointee = .haveData
             return inBuffer
         }
-        if convError != nil { return }
+        if let convError {
+            if !loggedConvertError {   // once per capture, not per buffer
+                loggedConvertError = true
+                Log.error("System-audio convert failed: \(convError.localizedDescription)")
+            }
+            return
+        }
         guard status != .error, outBuffer.frameLength > 0 else { return }
 
         do {
             try outputFile.write(from: outBuffer)
+            consecutiveWriteFailures = 0
         } catch {
-            Log.error("System-audio write failed: \(error.localizedDescription)")
+            if consecutiveWriteFailures == 0 {   // log the start of a streak, not every buffer
+                Log.error("System-audio write failed: \(error.localizedDescription)")
+            }
+            consecutiveWriteFailures += 1
+            if !warnedWriteFailure,
+               consecutiveWriteFailures >= CrashSafeRecorder.writeFailureThreshold {
+                warnedWriteFailure = true
+                onWriteFailure?()
+            }
         }
 
         // Any real audio marks the track as captured; digital silence (e.g. a missing

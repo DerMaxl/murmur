@@ -46,6 +46,17 @@ final class CrashSafeRecorder: @unchecked Sendable {
     /// UI can show a meter. Set before `start()`.
     var onLevel: (@Sendable (Float) -> Void)?
 
+    /// Fired (once per capture, from the audio thread) when buffers keep failing to
+    /// reach disk - e.g. the disk filled up. Without this the level meter keeps
+    /// bouncing on the in-memory buffers and the user records into the void.
+    /// Set before `start()`.
+    var onWriteFailure: (@Sendable () -> Void)?
+    /// Consecutive failed writes before `onWriteFailure` fires (~2 s of mic audio):
+    /// a lone transient failure shouldn't alarm, a sustained streak must.
+    static let writeFailureThreshold = 25
+    private var consecutiveWriteFailures = 0
+    private var warnedWriteFailure = false
+
     /// Capture from this specific input device instead of the system default. Used for
     /// meetings on Bluetooth/USB headphones: recording the headset's own mic forces it
     /// into the low-quality call (HFP) profile, which makes all audio stutter, so we
@@ -59,6 +70,8 @@ final class CrashSafeRecorder: @unchecked Sendable {
         defer { lock.unlock() }
         guard !isRecording else { return }
         framesWritten = 0
+        consecutiveWriteFailures = 0
+        warnedWriteFailure = false
 
         // Fresh engine so the input node binds to whatever the default input is *now*.
         engine = AVAudioEngine()
@@ -333,8 +346,16 @@ final class CrashSafeRecorder: @unchecked Sendable {
         do {
             try outputFile.write(from: outBuffer)
             framesWritten += AVAudioFramePosition(outBuffer.frameLength)
+            consecutiveWriteFailures = 0
         } catch {
-            Log.error("Write failed: \(error.localizedDescription)")
+            if consecutiveWriteFailures == 0 {   // log the start of a streak, not every buffer
+                Log.error("Write failed: \(error.localizedDescription)")
+            }
+            consecutiveWriteFailures += 1
+            if !warnedWriteFailure, consecutiveWriteFailures >= Self.writeFailureThreshold {
+                warnedWriteFailure = true
+                onWriteFailure?()
+            }
         }
 
         if let onLevel { onLevel(Self.loudness(outBuffer)) }

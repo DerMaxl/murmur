@@ -38,6 +38,15 @@ final class MeetingRecorder: @unchecked Sendable {
         didSet { mic.onLevel = onLevel }
     }
 
+    /// Fired once per capture when either track's audio stops reaching disk (e.g. the
+    /// disk filled up), so the UI can warn instead of recording into the void.
+    var onWriteFailure: (@Sendable () -> Void)? {
+        didSet {
+            mic.onWriteFailure = onWriteFailure
+            system.onWriteFailure = onWriteFailure
+        }
+    }
+
     /// Choose which mic to capture based on where sound is going right now. On headphones
     /// (Bluetooth, USB, or the jack) don't record a Bluetooth headset's own mic, which
     /// would force it into the low-quality call profile and make all audio stutter; use
