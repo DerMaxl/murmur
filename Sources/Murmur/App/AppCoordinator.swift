@@ -226,10 +226,12 @@ final class AppCoordinator {
         if isMeetingRecording { stopMeeting() } else { startMeeting() }
     }
 
-    /// Arm the meeting hotkey (default ⌥⌘E) if Accessibility is granted (the chord
-    /// needs an active event tap). Silent and idempotent; the menu works regardless.
+    /// Arm the meeting hotkey (default ⌥⌘E). Chords register through Carbon and need
+    /// no permission; only a bare-modifier shortcut (which needs an event tap) is
+    /// gated on Accessibility. Silent and idempotent; the menu works regardless.
     func armMeetingHotkey() {
-        guard !meetingHotkey.isRunning, AXIsProcessTrusted() else { return }
+        guard !meetingHotkey.isRunning,
+              !meetingHotkey.needsAccessibility || AXIsProcessTrusted() else { return }
         _ = meetingHotkey.start()
     }
 
