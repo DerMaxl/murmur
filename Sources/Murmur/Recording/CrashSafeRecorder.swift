@@ -136,6 +136,13 @@ final class CrashSafeRecorder: @unchecked Sendable {
         }, undo: { [self] in stop() })
     }
 
+    /// Synchronous stop for app termination: serialized onto the start queue so it
+    /// can't race an in-flight `startAsync`, and flushes the file before the process
+    /// exits.
+    func stopSync() {
+        startQueue.sync { stop() }
+    }
+
     /// Stop on the background queue (teardown also makes CoreAudio calls that can block),
     /// serialized after any in-flight `startAsync` on the same queue.
     func stopAsync() async {

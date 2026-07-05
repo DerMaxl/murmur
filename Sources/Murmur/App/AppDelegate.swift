@@ -355,9 +355,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Runs on every quit path (status-menu Quit, the main menu's ⌘Q, log-out, …).
     /// Stop an in-progress meeting so the journal records a clean finish instead of
-    /// an orphan to crash-recover; its transcription re-runs on the next launch.
+    /// an orphan to crash-recover (its transcription re-runs on the next launch), and
+    /// clean up an in-progress dictation so the system volume isn't left muted.
     func applicationWillTerminate(_ notification: Notification) {
         coordinator.stopMeetingAtTerminate()
+        coordinator.stopDictationAtTerminate()
     }
 
     // MARK: Per-recording actions (id carried in representedObject)

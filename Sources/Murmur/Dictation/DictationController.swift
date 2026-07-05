@@ -380,6 +380,24 @@ final class DictationController {
         }
     }
 
+    /// Synchronous cleanup for app termination: restore any ducked audio and release
+    /// the microphone before the process exits. Without this, quitting mid-dictation
+    /// leaves the system output muted until the next launch (the ducked volume is
+    /// persisted, but only restored at startup). The dictation itself is abandoned -
+    /// quitting mid-hold is an explicit user choice - so the temp file is removed.
+    func stopAtTerminate() {
+        guard phase != .idle else { return }
+        cancelLatch()
+        disarmStopKeys()
+        ducker.restore()
+        let recorder = self.recorder
+        let url = tempURL
+        resetCaptureState()
+        isFinishing = false
+        recorder?.stopSync()
+        if let url { try? FileManager.default.removeItem(at: url) }
+    }
+
     /// Roll back the optimistic state when the engine couldn't start (a wedged or slow
     /// audio system) and show a brief notice instead of freezing.
     private func startFailed(url: URL) {

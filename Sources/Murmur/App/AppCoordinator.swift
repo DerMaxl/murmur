@@ -294,6 +294,12 @@ final class AppCoordinator {
         }
     }
 
+    /// Terminate-time cleanup for dictation: restore ducked system audio and release
+    /// the microphone before the process exits.
+    func stopDictationAtTerminate() {
+        dictation.stopAtTerminate()
+    }
+
     /// Synchronous stop for app termination: flush both tracks and mark the recording
     /// finished so it isn't left as a crash-orphan. Transcription re-runs on next launch.
     /// The stop is serialized onto the audio queue (not run on the main thread) so it can't
