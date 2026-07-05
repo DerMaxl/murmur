@@ -172,8 +172,8 @@ final class AppCoordinator {
         for rec in store.recordings where rec.transcription != .done {
             guard rec.hasTranscribableAudio else { continue }
             // Launch-retry, not a user action: don't play a sound or touch the clipboard.
-            if rec.source == .meeting { transcribeMeeting(rec.id, userInitiated: false) }
-            else { transcribe(rec.id, userInitiated: false) }
+            // transcribe() routes meetings to the two-track path.
+            transcribe(rec.id, userInitiated: false)
         }
     }
 
@@ -489,6 +489,13 @@ final class AppCoordinator {
     /// manifest. Safe to call again to retry a failed one.
     func transcribe(_ id: UUID, userInitiated: Bool = true) {
         guard let rec = store.recording(id), rec.transcription != .running else { return }
+        // Meetings always take the two-track interleaved path. Without this, a retry
+        // from the UI would transcribe only the mic track (rec.url) and mark the
+        // meeting .done with the other side of the conversation silently missing.
+        if rec.source == .meeting {
+            transcribeMeeting(id, userInitiated: userInitiated)
+            return
+        }
         // An imported file can hold a conversation (e.g. an interview voice memo), so
         // when speaker labelling is on, run the diarised path instead of plain ASR.
         if rec.source == .imported, Settings.labelSpeakers {
