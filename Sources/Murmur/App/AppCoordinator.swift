@@ -323,38 +323,52 @@ final class AppCoordinator {
         let (youOffset, themOffset) = Self.trackOffsets(micStart: rec.micStartedAt,
                                                         systemStart: rec.systemStartedAt)
         Task { [self] in
-            async let mineTranscript = transcribeFile(micURL)
-            async let theirsTranscript = transcribeFile(systemURL)
-            async let theirsSpeakers = diarizeIfEnabled(systemURL)
+            do {
+                async let mineTranscript = transcribeFile(micURL)
+                async let theirsTranscript = transcribeFile(systemURL)
+                async let theirsSpeakers = diarizeIfEnabled(systemURL)
 
-            let youTurns = Self.turns(from: await mineTranscript, fallbackSpeaker: "You") { _ in "You" }
-            let themTurns = Self.systemTurns(from: await theirsTranscript,
-                                             speakers: await theirsSpeakers, appName: them)
-            // Shift each track onto a shared t=0 (the two captures start a few ms apart)
-            // before interleaving, so turn ordering at boundaries is correct.
-            let combined = Self.interleave(Self.shift(youTurns, by: youOffset)
-                                           + Self.shift(themTurns, by: themOffset))
+                let youTurns = Self.turns(from: try await mineTranscript, fallbackSpeaker: "You") { _ in "You" }
+                let themTurns = Self.systemTurns(from: try await theirsTranscript,
+                                                 speakers: await theirsSpeakers, appName: them)
+                // Shift each track onto a shared t=0 (the two captures start a few ms apart)
+                // before interleaving, so turn ordering at boundaries is correct.
+                let combined = Self.interleave(Self.shift(youTurns, by: youOffset)
+                                               + Self.shift(themTurns, by: themOffset))
 
-            // No speech on either track → don't keep an empty recording folder.
-            guard !combined.isEmpty else {
-                await MainActor.run {
-                    self.store.delete(id)
-                    self.onStateChange?()
-                    Log.info("Discarded silent meeting \(folder) (no speech)")
+                // Both tracks transcribed successfully and neither held speech → move
+                // the empty recording to Recently Deleted. Soft, not permanent: if the
+                // "silence" was actually a capture problem, the audio is still
+                // recoverable for the trash-retention window.
+                guard !combined.isEmpty else {
+                    await MainActor.run {
+                        self.store.setTranscript(id, text: "")
+                        self.store.softDelete(id)
+                        self.onStateChange?()
+                        Log.info("Meeting \(folder) had no speech; moved to Recently Deleted")
+                    }
+                    return
                 }
-                return
-            }
 
-            await MainActor.run {
-                self.store.setTranscript(id, text: combined)
-                self.onStateChange?()
-                self.onTranscriptionFinished(id, userInitiated: userInitiated)
-                Log.info("Transcribed meeting \(folder): \(combined.count) chars")
-            }
-            if let summary = await Summarizer.summarize(combined) {
                 await MainActor.run {
-                    self.store.setSummary(id, text: summary)
+                    self.store.setTranscript(id, text: combined)
                     self.onStateChange?()
+                    self.onTranscriptionFinished(id, userInitiated: userInitiated)
+                    Log.info("Transcribed meeting \(folder): \(combined.count) chars")
+                }
+                if let summary = await Summarizer.summarize(combined) {
+                    await MainActor.run {
+                        self.store.setSummary(id, text: summary)
+                        self.onStateChange?()
+                    }
+                }
+            } catch {
+                // Keep the audio and mark the meeting retryable; the launch retry (or
+                // the user) re-runs it. An engine failure must never delete a recording.
+                await MainActor.run {
+                    self.store.setTranscriptionStatus(id, .failed)
+                    self.onStateChange?()
+                    Log.error("Meeting transcription failed for \(folder): \(error.localizedDescription)")
                 }
             }
         }
@@ -365,16 +379,15 @@ final class AppCoordinator {
         return await diarizer.diarize(fileAt: url)
     }
 
-    private func transcribeFile(_ url: URL) async -> Transcript {
+    /// Transcribe one meeting track. A missing file is fine (a crash may leave only
+    /// one track) and yields an empty transcript; an engine error must *throw* so the
+    /// caller marks the meeting `.failed` instead of mistaking the error for silence
+    /// and discarding real audio.
+    private func transcribeFile(_ url: URL) async throws -> Transcript {
         guard FileManager.default.fileExists(atPath: url.path) else {
             return Transcript(text: "", segments: [])
         }
-        do {
-            return try await engine.transcribe(fileAt: url, onPartial: nil)
-        } catch {
-            Log.error("Track transcription failed: \(error.localizedDescription)")
-            return Transcript(text: "", segments: [])
-        }
+        return try await engine.transcribe(fileAt: url, onPartial: nil)
     }
 
     /// One labelled turn in a meeting transcript.
