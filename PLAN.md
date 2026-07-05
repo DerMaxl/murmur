@@ -70,9 +70,13 @@ The four core capabilities and the polish around them are done and released:
 
 ## Roadmap / ideas
 
+- **Custom vocabulary**: a user-editable replacement table (wrong → right: product
+  names, jargon, names the model habitually misspells) applied word-boundary,
+  case-aware in `TextCleaner` after every transcription, stored as a human-editable
+  file under Application Support with a small editor in Settings. Parakeet can't be
+  biased at inference time, so post-processing is the right seam.
 - **Onboarding flow**: first-run walkthrough that requests each permission with rationale
   and lets the user choose where recordings are stored. For when others install it.
-- **Model switcher** (Fast / Accurate) once a second engine is added.
 - **URL import** (YouTube etc. via yt-dlp) and audio extraction from video containers.
 - **Manual language override** for the rare case where one utterance mixes languages
   (auto-detect can misfire; per-language audio is accurate).
@@ -83,5 +87,6 @@ The four core capabilities and the polish around them are done and released:
 ## Model-swap candidates (behind `TranscriptionEngine`)
 
 - Parakeet TDT v3 / FluidAudio (current default; de/en/nl + 22 more, ANE, low RAM).
+- Apple SpeechAnalyzer (macOS 26): **shipped** as a selectable engine (Settings →
+  Transcription model). OS-managed model, zero download; single fixed locale.
 - whisper.cpp large-v3-turbo (Metal/Core ML), for the ~75 non-European languages.
-- Apple SpeechAnalyzer (macOS 26), fastest and zero bundle size, if quality proves out.
