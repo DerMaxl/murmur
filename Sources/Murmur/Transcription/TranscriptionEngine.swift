@@ -23,10 +23,17 @@ protocol TranscriptionEngine: Sendable {
     /// later (e.g. a first-run download failed because the Mac was offline).
     @discardableResult
     func prewarm() async -> Bool
+
+    /// Register a callback fired when the engine's readiness changes: `true` when the
+    /// model finishes loading, `false` when the engine frees its models after idling
+    /// (see `Settings.unloadModelsWhenIdle`). Drives the HUD's "Loading model" vs
+    /// "Transcribing" message. Default: never fires (engines that are always ready).
+    func setReadinessHandler(_ handler: @escaping @Sendable (Bool) -> Void) async
 }
 
 extension TranscriptionEngine {
     func prewarm() async -> Bool { true }
+    func setReadinessHandler(_ handler: @escaping @Sendable (Bool) -> Void) async {}
 }
 
 /// Result of a transcription. Segments carry per-utterance timing (for SRT export

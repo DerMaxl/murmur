@@ -55,6 +55,9 @@ final class AppModel {
     var labelSpeakers = Settings.labelSpeakers {
         didSet { guard !refreshing else { return }; Settings.labelSpeakers = labelSpeakers; coordinator.onStateChange?() }
     }
+    var unloadModelsWhenIdle = Settings.unloadModelsWhenIdle {
+        didSet { guard !refreshing else { return }; Settings.unloadModelsWhenIdle = unloadModelsWhenIdle; coordinator.onStateChange?() }
+    }
     var dictationEnabled = false {
         didSet {
             guard !refreshing, dictationEnabled != coordinator.dictationEnabled else { return }
@@ -117,6 +120,7 @@ final class AppModel {
         if polishTranscripts != Settings.polishTranscripts { polishTranscripts = Settings.polishTranscripts }
         if pauseMusicWhileDictating != Settings.pauseMusicWhileDictating { pauseMusicWhileDictating = Settings.pauseMusicWhileDictating }
         if labelSpeakers != Settings.labelSpeakers { labelSpeakers = Settings.labelSpeakers }
+        if unloadModelsWhenIdle != Settings.unloadModelsWhenIdle { unloadModelsWhenIdle = Settings.unloadModelsWhenIdle }
         if dictationEnabled != coordinator.dictationEnabled { dictationEnabled = coordinator.dictationEnabled }
         if dictationShortcut != Settings.dictationShortcut { dictationShortcut = Settings.dictationShortcut }
         if meetingShortcut != Settings.meetingShortcut { meetingShortcut = Settings.meetingShortcut }

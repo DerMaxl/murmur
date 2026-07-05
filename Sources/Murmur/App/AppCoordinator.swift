@@ -99,8 +99,21 @@ final class AppCoordinator {
     var dictationTrigger: String { dictation.triggerDescription }
 
     /// Whether the speech model has finished loading. Drives the HUD's "Loading model"
-    /// vs "Transcribing" message while a dictation is finishing.
+    /// vs "Transcribing" message while a dictation is finishing. Kept honest across
+    /// idle unloads by the engine's readiness handler (wired in `init`).
     private(set) var engineReady = false
+
+    init() {
+        Task { [engine] in
+            await engine.setReadinessHandler { [weak self] ready in
+                Task { @MainActor in
+                    guard let self, self.engineReady != ready else { return }
+                    self.engineReady = ready
+                    self.onStateChange?()
+                }
+            }
+        }
+    }
 
     func toggleDictation() {
         dictation.toggle()

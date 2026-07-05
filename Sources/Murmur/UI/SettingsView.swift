@@ -77,10 +77,11 @@ struct SettingsView: View {
             Section {
                 LabeledContent("Speech-to-text model", value: "Parakeet TDT v3")
                 LabeledContent("Space it uses", value: StorageInfo.format(model.storage.model))
+                Toggle("Free model memory when idle", isOn: $model.unloadModelsWhenIdle)
             } header: {
                 Text("Transcription model")
             } footer: {
-                Text("Runs entirely on your Mac. Nothing is sent to the cloud. Understands German, English, Dutch and 22 more languages. Choosing a different model is coming later.")
+                Text("Runs entirely on your Mac. Nothing is sent to the cloud. Understands German, English, Dutch and 22 more languages. Freeing memory unloads the model after about 10 minutes without a transcription; the next use takes a few seconds longer while it reloads.")
             }
 
             Section {

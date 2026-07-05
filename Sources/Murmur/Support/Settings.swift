@@ -109,6 +109,14 @@ enum Settings {
         set { UserDefaults.standard.set(newValue, forKey: "labelSpeakers") }
     }
 
+    /// Free the speech/diarization models after ~10 minutes without a transcription
+    /// (they keep several hundred MB resident). The next use reloads them from the
+    /// compiled CoreML cache, which takes a few seconds. Default on.
+    static var unloadModelsWhenIdle: Bool {
+        get { UserDefaults.standard.object(forKey: "unloadModelsWhenIdle") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "unloadModelsWhenIdle") }
+    }
+
     /// The push-to-talk dictation trigger. Default: hold Fn. Migrates the old
     /// `dictationTrigger` string ("fn"/"rightOption") on first read.
     static var dictationShortcut: Shortcut {

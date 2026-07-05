@@ -14,8 +14,10 @@ struct SpeakerSegment: Sendable {
 /// An `actor` so the (non-Sendable) `DiarizerManager` is accessed serially.
 actor Diarizer {
     private var manager: DiarizerManager?
+    private var idleUnloadTask: Task<Void, Never>?
 
     private func prepare() async throws {
+        idleUnloadTask?.cancel()   // in use: don't unload mid-diarization
         guard manager == nil else { return }
         Log.info("Loading speaker-diarization models (first run downloads them)...")
         let models = try await DiarizerModels.downloadIfNeeded()
@@ -25,9 +27,23 @@ actor Diarizer {
         Log.info("Diarization models ready")
     }
 
+    /// Free the Pyannote models after a while without a diarization (same policy as
+    /// `ParakeetEngine`); the next use reloads from the CoreML cache.
+    private func scheduleIdleUnload() {
+        idleUnloadTask?.cancel()
+        guard manager != nil else { return }
+        idleUnloadTask = Task {
+            try? await Task.sleep(for: .seconds(10 * 60))
+            guard !Task.isCancelled, Settings.unloadModelsWhenIdle else { return }
+            manager = nil
+            Log.info("Diarization models unloaded after idle")
+        }
+    }
+
     /// Diarize a 16 kHz mono file. Best-effort: returns `[]` for very short audio or
     /// on any error, so the caller falls back to an un-labelled transcript.
     func diarize(fileAt url: URL) async -> [SpeakerSegment] {
+        defer { scheduleIdleUnload() }
         do {
             try await prepare()
             guard let manager else { return [] }
