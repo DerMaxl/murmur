@@ -111,6 +111,9 @@ final class CrashSafeRecorder: @unchecked Sendable {
             self?.append(buffer)
         }
 
+        // Step log: a wedged CoreAudio call can hang here for a minute or more (seen
+        // with a forced input rebind); this pins down which step the time went to.
+        Log.info("Mic capture configured; starting audio engine")
         engine.prepare()
         do {
             try engine.start()
@@ -201,14 +204,6 @@ final class CrashSafeRecorder: @unchecked Sendable {
         allDevices().first { hasInputStreams($0) && transportType($0) == kAudioDeviceTransportTypeBuiltIn }
     }
 
-    /// True when the current default output is the built-in speakers, where the mic can
-    /// pick up speaker bleed (so echo cancellation is worth enabling). Headphones
-    /// (Bluetooth, USB, or the jack) play into your ears, so there is no bleed to cancel.
-    static func outputUsesBuiltInSpeakers() -> Bool {
-        guard let out = defaultOutputDevice else { return false }
-        return transportType(out) == kAudioDeviceTransportTypeBuiltIn
-    }
-
     private static func allDevices() -> [AudioDeviceID] {
         var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDevices,
                                                  mScope: kAudioObjectPropertyScopeGlobal,
@@ -228,6 +223,16 @@ final class CrashSafeRecorder: @unchecked Sendable {
                                                  mElement: kAudioObjectPropertyElementMain)
         var size: UInt32 = 0
         return AudioObjectGetPropertyDataSize(device, &address, 0, nil, &size) == noErr && size > 0
+    }
+
+    /// True when `device` connects over Bluetooth (classic or LE). Recording a
+    /// Bluetooth headset's own mic forces it into the low-quality call (HFP)
+    /// profile; other transports (built-in, USB, a wireless dongle) don't have
+    /// that failure mode.
+    static func isBluetooth(_ device: AudioDeviceID) -> Bool {
+        let transport = transportType(device)
+        return transport == kAudioDeviceTransportTypeBluetooth
+            || transport == kAudioDeviceTransportTypeBluetoothLE
     }
 
     private static func transportType(_ device: AudioDeviceID) -> UInt32? {

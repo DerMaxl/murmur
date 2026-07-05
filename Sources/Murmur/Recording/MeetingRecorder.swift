@@ -47,11 +47,15 @@ final class MeetingRecorder: @unchecked Sendable {
         }
     }
 
-    /// Choose which mic to capture based on where sound is going right now. On headphones
-    /// (Bluetooth, USB, or the jack) don't record a Bluetooth headset's own mic, which
-    /// would force it into the low-quality call profile and make all audio stutter; use
-    /// the built-in mic and leave the headphones in high-quality output. Decided per
-    /// recording, since the audio devices can change between meetings.
+    /// Choose which mic to capture. Only a **Bluetooth** input needs avoiding:
+    /// recording a Bluetooth headset's own mic forces it into the low-quality call
+    /// (HFP) profile, which makes all audio stutter, so we record the built-in mic
+    /// instead. Every other input - built-in, USB, or a wireless-dongle headset (e.g.
+    /// an Arctis) - records fine as-is, and leaving the engine on its default input
+    /// avoids rebinding the input device: the old output-based heuristic forced the
+    /// built-in mic whenever headphones were the *output*, and on a USB headset that
+    /// rebind wedged CoreAudio for ~90 s, so the meeting timed out and failed to
+    /// start. Decided per recording, since devices change between meetings.
     ///
     /// Echo cancellation (voice processing) is intentionally NOT used: it ducks system
     /// output while recording, which makes a live call (e.g. Google Meet) hard to hear,
@@ -60,15 +64,15 @@ final class MeetingRecorder: @unchecked Sendable {
     /// speaker bleed into the mic doesn't matter.
     private func configureMic() {
         // An explicit mic choice from settings always wins (a deliberate decision, so we
-        // don't second-guess it with the headphone heuristic below).
+        // don't second-guess it with the Bluetooth heuristic below).
         if let chosen = CrashSafeRecorder.preferredInputDevice() {
             mic.inputDeviceID = chosen
             return
         }
-        if CrashSafeRecorder.outputUsesBuiltInSpeakers() {
-            mic.inputDeviceID = nil
-        } else {
+        if let input = CrashSafeRecorder.defaultInputDevice, CrashSafeRecorder.isBluetooth(input) {
             mic.inputDeviceID = CrashSafeRecorder.builtInInputDevice()
+        } else {
+            mic.inputDeviceID = nil   // default input, no rebind
         }
     }
 
