@@ -104,6 +104,21 @@ actor SpeechAnalyzerEngine: TranscriptionEngine {
         return try await collector.value
     }
 
+    /// Live-preview tick: analyze the capture recorded so far and return its text.
+    /// Unlike Parakeet there is no VAD here to finalize chunks incrementally, so each
+    /// tick re-analyzes the whole file - fine for this engine (the OS model runs well
+    /// above realtime and dictations are short), and the preview loop self-paces so
+    /// ticks never pile up. The final pass re-analyzes the complete file as usual.
+    func livePartial(fileAt url: URL) async -> String? {
+        do {
+            let text = try await transcribe(fileAt: url, onPartial: nil).text
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return text.isEmpty ? nil : text
+        } catch {
+            return nil   // best-effort: a failed tick just shows nothing new
+        }
+    }
+
     /// The audio time span a result covers, from its `.audioTimeRange` run attributes.
     private static func timeRange(of text: AttributedString) -> (start: TimeInterval, end: TimeInterval)? {
         var start: TimeInterval?
