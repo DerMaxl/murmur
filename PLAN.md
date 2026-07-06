@@ -86,7 +86,8 @@ The four core capabilities and the polish around them are done and released:
 
 ## Model-swap candidates (behind `TranscriptionEngine`)
 
-- Parakeet TDT v3 / FluidAudio (current default; de/en/nl + 22 more, ANE, low RAM).
-- Apple SpeechAnalyzer (macOS 26): **shipped** as a selectable engine (Settings →
-  Transcription model). OS-managed model, zero download; single fixed locale.
+- Apple SpeechAnalyzer (macOS 26): **shipped**; the default for fresh installs on
+  macOS 26+ (OS-managed model, zero download; single fixed locale).
+- Parakeet TDT v3 / FluidAudio: **shipped**; the multilingual step-up engine, and
+  the default on macOS 15 and for installs predating the picker.
 - whisper.cpp large-v3-turbo (Metal/Core ML), for the ~75 non-European languages.

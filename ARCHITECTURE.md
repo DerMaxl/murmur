@@ -41,13 +41,17 @@ Sources/Murmur/
 
 ## Speech engine
 
-- **Default:** NVIDIA Parakeet TDT v3 (0.6B) via [FluidAudio](https://github.com/FluidInference/FluidAudio),
-  on the Apple Neural Engine. Covers German, English, Dutch, and 22 other European
-  languages with automatic language detection, one model for all.
-- **Alternative (macOS 26+):** Apple's SpeechAnalyzer, selectable under Settings →
-  Transcription model. The OS owns the model (zero download, no model memory in
-  Murmur), but it transcribes in one fixed locale. A `SwitchableEngine` routes each
-  call to whichever engine is selected, so switching needs no relaunch.
+Two engines behind one picker (Settings → Transcription model); a `SwitchableEngine`
+routes each call to whichever is selected, so switching needs no relaunch.
+
+- **Apple SpeechAnalyzer (macOS 26+)** — the default for fresh installs on macOS 26+:
+  the OS owns the model (zero download, no model memory in Murmur), so dictation
+  works the moment the app is installed. Transcribes in one fixed locale.
+- **NVIDIA Parakeet TDT v3** (0.6B) via [FluidAudio](https://github.com/FluidInference/FluidAudio),
+  on the Apple Neural Engine — the step-up model, and the default on macOS 15 and
+  for installs that predate the picker. Covers German, English, Dutch, and 22 other
+  European languages with automatic language detection, one model for all
+  (downloaded on first use).
 - **Memory:** models load lazily and, by default, unload after ~10 minutes without
   a transcription ("Free model memory when idle"); the next use reloads from the
   compiled CoreML cache in seconds.

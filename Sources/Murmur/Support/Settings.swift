@@ -109,10 +109,12 @@ enum Settings {
         set { UserDefaults.standard.set(newValue, forKey: "labelSpeakers") }
     }
 
-    /// Which speech-to-text engine transcribes audio. Default Parakeet (multilingual
-    /// with automatic language detection); the Apple engine (macOS 26+) is built into
-    /// the OS - zero download and no model memory in Murmur - but transcribes in one
-    /// fixed language.
+    /// Which speech-to-text engine transcribes audio. The Apple engine (macOS 26+)
+    /// is built into the OS - zero download and no model memory in Murmur - but
+    /// transcribes in one fixed language; Parakeet is multilingual with automatic
+    /// language detection. Fresh installs on macOS 26+ start on the Apple engine
+    /// (see `applyFirstRunDefaultsIfNeeded`); the stored-value fallback stays
+    /// Parakeet so existing installs and macOS 15 are unaffected.
     static var transcriptionEngine: EngineChoice {
         get { EngineChoice(rawValue: UserDefaults.standard.string(forKey: "transcriptionEngine") ?? "") ?? .parakeet }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: "transcriptionEngine") }
@@ -186,15 +188,21 @@ enum Settings {
         set { UserDefaults.standard.set(newValue.rawValue, forKey: "dictationMode") }
     }
 
-    /// One-time first-run defaults that need an action rather than just a stored value.
-    /// Currently: enable Launch at Login by default (Murmur is hotkey-driven, so it's
-    /// only useful while running). Gated by a flag so a user who later turns it off is
-    /// not re-enabled on the next launch.
+    /// One-time first-run defaults that need an action rather than just a stored value:
+    /// enable Launch at Login (Murmur is hotkey-driven, so it's only useful while
+    /// running), and on macOS 26+ start on the built-in Apple speech engine so the
+    /// first dictation works immediately with nothing to download - Parakeet (better,
+    /// multilingual) is one Settings switch away. Gated by a flag so existing installs
+    /// (which predate the picker and expect Parakeet) and later user choices are
+    /// never overridden.
     static func applyFirstRunDefaultsIfNeeded() {
         let key = "didApplyDefaultLoginItem"
         guard !UserDefaults.standard.bool(forKey: key) else { return }
         UserDefaults.standard.set(true, forKey: key)
         LoginItem.setEnabled(true)
+        if #available(macOS 26.0, *) {
+            transcriptionEngine = .appleSpeech
+        }
     }
 
     // MARK: Shortcut persistence
