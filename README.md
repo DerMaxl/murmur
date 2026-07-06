@@ -29,6 +29,7 @@ So Murmur is built around one rule above all: your recording is always saved, ev
 ## Features
 
 - **Dictation anywhere:** hold a key, speak, and the text is typed at your cursor. Four interaction modes, a configurable hotkey, and your clipboard is preserved.
+- **Live preview (optional):** watch the words appear in the on-screen meter while you speak — and the work is reused, so the final text isn't transcribed twice.
 - **Mutes background audio** (Spotify, Music) while you talk and restores it after. Calls in a browser or an app like Zoom are left alone.
 - **Meeting capture:** records your mic and the system audio as two tracks, with speaker labels merged into one chronological transcript.
 - **File import:** drop in a voice memo or recording to transcribe it.
@@ -38,7 +39,7 @@ So Murmur is built around one rule above all: your recording is always saved, ev
 
 ## Speech engine and privacy
 
-Murmur uses NVIDIA Parakeet TDT v3 via [FluidAudio](https://github.com/FluidInference/FluidAudio) on the Apple Neural Engine, covering German, English, Dutch, and 22 other European languages with automatic language detection. Everything runs on-device; the only network access is a one-time model download. The optional AI features use Apple's on-device Foundation Models.
+Murmur uses NVIDIA Parakeet TDT v3 via [FluidAudio](https://github.com/FluidInference/FluidAudio) on the Apple Neural Engine, covering German, English, Dutch, and 22 other European languages with automatic language detection. On macOS 26 you can switch to Apple's built-in speech engine instead (nothing to download, single language). Everything runs on-device; the only network access is a one-time model download and the update check. The optional AI features use Apple's on-device Foundation Models. To stay light, the speech models are unloaded after a few idle minutes and reloaded in seconds when needed (you can turn this off).
 
 ## Requirements
 

@@ -44,6 +44,13 @@ Sources/Murmur/
 - **Default:** NVIDIA Parakeet TDT v3 (0.6B) via [FluidAudio](https://github.com/FluidInference/FluidAudio),
   on the Apple Neural Engine. Covers German, English, Dutch, and 22 other European
   languages with automatic language detection, one model for all.
+- **Alternative (macOS 26+):** Apple's SpeechAnalyzer, selectable under Settings →
+  Transcription model. The OS owns the model (zero download, no model memory in
+  Murmur), but it transcribes in one fixed locale. A `SwitchableEngine` routes each
+  call to whichever engine is selected, so switching needs no relaunch.
+- **Memory:** models load lazily and, by default, unload after ~10 minutes without
+  a transcription ("Free model memory when idle"); the next use reloads from the
+  compiled CoreML cache in seconds.
 - **Audio contract:** the engine consumes 16 kHz mono Float32 PCM. The recorder always
   writes that format, so recording and transcription share one pipeline.
 - **Segmentation:** long audio is split into speech chunks with Silero VAD (silence
@@ -88,7 +95,9 @@ about it without joining across files:
 ## Permissions (TCC)
 
 - **Microphone**, recording (`NSMicrophoneUsageDescription`).
-- **Accessibility**, the global hotkey + typing text into other apps (dictation).
+- **Accessibility**, dictation only: the bare-modifier hold trigger (an event tap)
+  and typing text into other apps. Chord shortcuts (e.g. the ⌥⌘E meeting toggle)
+  register through Carbon hotkeys and need no permission at all.
 - **Screen Recording / system audio** (`NSAudioCaptureUsageDescription`), capturing the
   other side of a meeting.
 
