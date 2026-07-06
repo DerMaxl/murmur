@@ -479,12 +479,22 @@ final class DictationController {
                 // "your recording is always saved" rule).
                 Log.error("Dictation transcription failed: \(error.localizedDescription)")
                 await MainActor.run {
-                    if let self, let handler = self.onTranscriptionFailed {
+                    guard let self else {
+                        try? FileManager.default.removeItem(at: url)
+                        return
+                    }
+                    // Leave the finishing state *before* the failure handler runs: the
+                    // state change hides the processing HUD, and firing it after the
+                    // handler's notice would immediately tear that notice down.
+                    self.isFinishing = false
+                    self.onStateChange?()
+                    if let handler = self.onTranscriptionFailed {
                         handler(url, duration, targetApp)
                     } else {
                         try? FileManager.default.removeItem(at: url)
                     }
                 }
+                return
             }
             await MainActor.run {
                 self?.isFinishing = false

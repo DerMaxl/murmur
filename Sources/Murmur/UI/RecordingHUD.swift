@@ -142,12 +142,14 @@ final class RecordingHUD {
         ensureVisible()
     }
 
-    /// Briefly show a one-line message (e.g. a recording that couldn't start), then
-    /// auto-hide. Independent of the recording/processing states; used for transient
-    /// feedback when there's no ongoing recording to attach to.
+    /// Briefly show a one-line message, then move on. Outside a capture (a recording
+    /// that couldn't start) the panel auto-hides afterwards. *During* a capture (the
+    /// disk-full warning fires mid-recording) the notice only overlays the meter and
+    /// puts it back, so the recording display isn't killed for the rest of the take.
     func showNotice(_ message: String, duration: TimeInterval = 2.2) {
+        let overlaysRecording = startDate != nil && processingMessage == nil
         processingMessage = nil
-        startDate = nil
+        if !overlaysRecording { startDate = nil }
         clearPreview()
         meter.isHidden = true
         timeLabel.isHidden = true
@@ -157,7 +159,18 @@ final class RecordingHUD {
         panel.orderFrontRegardless()
         panel.contentView?.display()   // background apps don't reliably repaint on their own
         noticeHideWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.hide() }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            // Still recording (show/showProcessing/hide would have cancelled us,
+            // but stay defensive): restore the meter + timer instead of hiding.
+            if overlaysRecording, self.startDate != nil, self.processingMessage == nil {
+                self.statusLabel.isHidden = true
+                self.meter.isHidden = false
+                self.timeLabel.isHidden = false
+            } else {
+                self.hide()
+            }
+        }
         noticeHideWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
     }
