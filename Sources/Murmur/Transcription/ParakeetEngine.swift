@@ -42,9 +42,15 @@ actor ParakeetEngine: TranscriptionEngine {
     private static let idleUnloadDelay: Duration = .seconds(10 * 60)
     private var idleUnloadTask: Task<Void, Never>?
 
+    /// Transcriptions currently inside the engine. The idle timer only arms when
+    /// this drops to zero, so one meeting track finishing can't schedule an unload
+    /// out from under the other track that's still transcribing.
+    private var activeUses = 0
+
     /// (Re)arm the idle-unload timer. Called after every use; each call supersedes
     /// the previous timer, so the delay always counts from the last transcription.
     private func scheduleIdleUnload() {
+        guard activeUses == 0 else { return }   // a sibling transcription is still running
         idleUnloadTask?.cancel()
         guard asr != nil || vad != nil else { return }
         idleUnloadTask = Task {
@@ -64,25 +70,42 @@ actor ParakeetEngine: TranscriptionEngine {
         onReadinessChange?(false)
     }
 
-    /// Download (first run only) and load the ASR + VAD Core ML models. Idempotent.
+    /// In-flight model load, so concurrent callers join one load instead of each
+    /// running their own (a meeting transcribes two tracks at once - without this,
+    /// both would download/compile the models and double the peak memory, on every
+    /// first use after an idle unload).
+    private var loadTask: Task<Void, Error>?
+
+    /// Download (first run only) and load the ASR + VAD Core ML models. Idempotent
+    /// and de-duplicated across concurrent callers.
     private func prepare() async throws {
         // In use: an unload timer from a previous transcription must not fire mid-run.
         idleUnloadTask?.cancel()
-        let wasLoaded = asr != nil && vad != nil
-        if asr == nil {
-            Log.info("Loading Parakeet v3 models (first run downloads them)...")
-            let models = try await AsrModels.downloadAndLoad(version: .v3)
-            let manager = AsrManager(config: .default)
-            try await manager.loadModels(models)
-            asr = manager
-        }
-        if vad == nil {
-            Log.info("Loading Silero VAD model...")
-            vad = try await VadManager(config: .default)
-        }
-        if !wasLoaded {
+        guard asr == nil || vad == nil else { return }
+        let task = loadTask ?? Task {
+            if asr == nil {
+                Log.info("Loading Parakeet v3 models (first run downloads them)...")
+                let models = try await AsrModels.downloadAndLoad(version: .v3)
+                let manager = AsrManager(config: .default)
+                try await manager.loadModels(models)
+                asr = manager
+            }
+            if vad == nil {
+                Log.info("Loading Silero VAD model...")
+                vad = try await VadManager(config: .default)
+            }
             Log.info("Speech models ready")
             onReadinessChange?(true)
+        }
+        loadTask = task
+        defer { loadTask = nil }
+        do {
+            try await task.value
+        } catch {
+            // A partial failure can leave one model resident (ASR loaded, the VAD
+            // download failed offline): make sure an unload timer still covers it.
+            scheduleIdleUnload()
+            throw error
         }
     }
 
@@ -105,8 +128,9 @@ actor ParakeetEngine: TranscriptionEngine {
         // it must not linger for a URL that's about to be deleted or moved).
         let liveState = liveSessions.removeValue(forKey: url)
         try await prepare()
-        // Count idle from when this transcription finishes, however it exits.
-        defer { scheduleIdleUnload() }
+        // Count idle from when the engine's last in-flight transcription finishes.
+        activeUses += 1
+        defer { activeUses -= 1; scheduleIdleUnload() }
         guard let asr, let vad else { throw EngineError.notPrepared }
 
         // The preview already transcribed the finalized part of this dictation while
@@ -184,7 +208,8 @@ actor ParakeetEngine: TranscriptionEngine {
     func livePartial(fileAt url: URL) async -> String? {
         do {
             try await prepare()
-            defer { scheduleIdleUnload() }
+            activeUses += 1
+            defer { activeUses -= 1; scheduleIdleUnload() }
             guard let asr, let vad else { return nil }
 
             var state = liveSessions[url] ?? LiveState()
