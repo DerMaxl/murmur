@@ -40,7 +40,11 @@ final class SwitchableEngine: TranscriptionEngine {
 
     func transcribe(fileAt url: URL,
                     onPartial: (@Sendable (String) -> Void)?) async throws -> Transcript {
-        try await current.transcribe(fileAt: url, onPartial: onPartial)
+        let engine = current
+        // Switching engines mid-dictation must not strand Parakeet's live-preview
+        // session for this file (only Parakeet's own transcribe consumes it).
+        if !(engine is ParakeetEngine) { await parakeet.liveDiscard(fileAt: url) }
+        return try await engine.transcribe(fileAt: url, onPartial: onPartial)
     }
 
     @discardableResult
@@ -51,7 +55,12 @@ final class SwitchableEngine: TranscriptionEngine {
     func setReadinessHandler(_ handler: @escaping @Sendable (Bool) -> Void) async {
         // Only Parakeet loads/unloads models in-process; the Apple engine's model
         // is managed by the OS and is effectively always ready.
-        await parakeet.setReadinessHandler(handler)
+        await parakeet.setReadinessHandler { ready in
+            // A background Parakeet idle-unload must not flip the app to "Loading
+            // model" while the (always-ready) Apple engine is the one selected.
+            if !ready, Settings.transcriptionEngine == .appleSpeech { return }
+            handler(ready)
+        }
     }
 
     func livePartial(fileAt url: URL) async -> String? {
@@ -59,6 +68,9 @@ final class SwitchableEngine: TranscriptionEngine {
     }
 
     func liveDiscard(fileAt url: URL) async {
-        await current.liveDiscard(fileAt: url)
+        // Both engines, not `current`: the selection may have changed since the
+        // session was created.
+        await parakeet.liveDiscard(fileAt: url)
+        await apple?.liveDiscard(fileAt: url)
     }
 }

@@ -88,7 +88,7 @@ struct SettingsView: View {
             } header: {
                 Text("Transcription model")
             } footer: {
-                Text(model.transcriptionEngine == .appleSpeech
+                Text(model.transcriptionEngine == .appleSpeech && model.appleEngineAvailable
                      ? "Apple's engine is built into macOS: nothing to download, and it uses no model memory inside Murmur. It transcribes in one language (your first supported system language) - switch back to Parakeet for automatic language detection across German, English, Dutch and 22 more. Everything runs on your Mac either way."
                      : "Runs entirely on your Mac. Nothing is sent to the cloud. Understands German, English, Dutch and 22 more languages. Freeing memory unloads the model after about 10 minutes without a transcription; the next use takes a few seconds longer while it reloads.")
             }
