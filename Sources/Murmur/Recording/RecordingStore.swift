@@ -311,6 +311,8 @@ final class RecordingStore {
             try FileManager.default.moveItem(at: url, to: rec.url)
         } catch {
             Log.error("Couldn't preserve failed dictation audio: \(error.localizedDescription)")
+            // Never journaled, so nothing would ever clean this folder up.
+            try? FileManager.default.removeItem(at: rec.dir)
             return nil
         }
         entries.append(rec)

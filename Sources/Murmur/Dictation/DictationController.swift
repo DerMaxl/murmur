@@ -433,9 +433,13 @@ final class DictationController {
         ducker.restore()
         let recorder = self.recorder
         let url = tempURL
+        let startWasInFlight = startInFlight
         resetCaptureState()
         isFinishing = false
-        recorder?.stopSync()
+        // Skip the synchronous stop while the start is still in flight: stopSync
+        // queues behind it, so a wedged CoreAudio start would hang the quit. The
+        // capture never confirmed, and the OS reclaims the mic at process exit.
+        if !startWasInFlight { recorder?.stopSync() }
         if let url { try? FileManager.default.removeItem(at: url) }
     }
 

@@ -75,7 +75,7 @@ final class GlobalHotkey {
 
     private func startCarbon() -> Bool {
         guard let keyCode = shortcut.keyCode else { return false }
-        Self.installCarbonHandlerIfNeeded()
+        guard Self.installCarbonHandlerIfNeeded() else { return false }
         let id = Self.nextID
         Self.nextID &+= 1
         var ref: EventHotKeyRef?
@@ -106,34 +106,43 @@ final class GlobalHotkey {
     }
 
     /// One process-wide handler for all our hotkeys; runs on the main event loop.
-    private static func installCarbonHandlerIfNeeded() {
-        guard !handlerInstalled else { return }
+    /// Returns whether the handler is in place (a failed install means no chord can
+    /// ever fire, so callers must report the arm as failed).
+    private static func installCarbonHandlerIfNeeded() -> Bool {
+        guard !handlerInstalled else { return true }
         var types = [
             EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
                           eventKind: UInt32(kEventHotKeyPressed)),
             EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
                           eventKind: UInt32(kEventHotKeyReleased)),
         ]
-        InstallEventHandler(GetEventDispatcherTarget(), { _, event, _ in
-            guard let event else { return noErr }
+        let status = InstallEventHandler(GetEventDispatcherTarget(), { _, event, _ in
+            guard let event else { return OSStatus(eventNotHandledErr) }
             var id = EventHotKeyID()
             GetEventParameter(event, EventParamName(kEventParamDirectObject),
                               EventParamType(typeEventHotKeyID), nil,
                               MemoryLayout<EventHotKeyID>.size, nil, &id)
             let kind = GetEventKind(event)
-            // The dispatcher target delivers on the main thread.
-            MainActor.assumeIsolated {
+            // The dispatcher target delivers on the main thread. Pass on events
+            // that aren't ours so another in-process consumer could still see them.
+            let handled = MainActor.assumeIsolated { () -> Bool in
                 guard id.signature == GlobalHotkey.signature,
-                      let hotkey = GlobalHotkey.registered[id.id] else { return }
+                      let hotkey = GlobalHotkey.registered[id.id] else { return false }
                 if kind == UInt32(kEventHotKeyPressed) {
                     if !hotkey.isDown { hotkey.isDown = true; hotkey.onPress?() }
                 } else if kind == UInt32(kEventHotKeyReleased) {
                     if hotkey.isDown { hotkey.isDown = false; hotkey.onRelease?() }
                 }
+                return true
             }
-            return noErr
+            return handled ? noErr : OSStatus(eventNotHandledErr)
         }, 2, &types, nil, nil)
+        guard status == noErr else {
+            Log.error("Failed to install the hotkey event handler (status \(status))")
+            return false
+        }
         handlerInstalled = true
+        return true
     }
 
     // MARK: Bare modifiers (event tap)

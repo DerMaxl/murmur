@@ -38,8 +38,9 @@ final class MeetingRecorder: @unchecked Sendable {
         didSet { mic.onLevel = onLevel }
     }
 
-    /// Fired once per capture when either track's audio stops reaching disk (e.g. the
-    /// disk filled up), so the UI can warn instead of recording into the void.
+    /// Fired when a track's audio stops reaching disk (e.g. the disk filled up), so
+    /// the UI can warn instead of recording into the void. At most once per track
+    /// per capture, so a full disk can surface it for the mic and the system track.
     var onWriteFailure: (@Sendable () -> Void)? {
         didSet {
             mic.onWriteFailure = onWriteFailure

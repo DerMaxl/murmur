@@ -62,10 +62,14 @@ final class AppCoordinator {
     /// retryable History entry so the speech isn't lost. The launch retry also picks
     /// it up (any non-done recording with audio is re-enqueued).
     private func preserveFailedDictation(audioAt url: URL, duration: TimeInterval, targetApp: String?) {
-        guard store.adoptFailedDictation(audioAt: url, duration: duration,
-                                         targetApp: targetApp) != nil else { return }
-        onStateChange?()
-        onNotice?("Transcription failed — audio saved to History")
+        if store.adoptFailedDictation(audioAt: url, duration: duration, targetApp: targetApp) != nil {
+            onStateChange?()
+            onNotice?("Transcription failed — audio saved to History")
+        } else {
+            // Even the rescue failed (couldn't move the audio): still tell the user
+            // rather than having the HUD silently vanish.
+            onNotice?("Transcription failed")
+        }
     }
 
     /// Fired whenever recording starts or stops, so the UI can refresh, including
