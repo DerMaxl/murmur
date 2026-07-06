@@ -10,7 +10,10 @@ import FoundationModels
 enum Summarizer {
     static func summarize(_ transcript: String) async -> String? {
         let text = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard text.count > 40 else { return nil }   // too short to be worth summarizing
+        // A short transcript IS its own summary: a 14-word cap can't compress a
+        // couple of dozen words, so the model just reads them back (observed with a
+        // 12-word meeting). Only summarize when there is something to compress.
+        guard text.split(whereSeparator: \.isWhitespace).count >= 25 else { return nil }
 
         #if canImport(FoundationModels)
         if #available(macOS 26.0, *) {
@@ -32,18 +35,47 @@ enum Summarizer {
         let capped = text.count > 6000 ? String(text.prefix(6000)) : text
 
         let session = LanguageModelSession {
-            "You summarize a voice transcript in one concise sentence of at most 14 "
-            + "words. Output only the summary, with no preamble or quotation marks."
+            """
+            You write a one-line summary of a voice transcript (a dictation, meeting, \
+            or memo). Rules:
+            - One sentence, at most 14 words, in the same language as the transcript.
+            - Describe what it is about - the topic, decisions, or requests - in your \
+            own words, like a subject line.
+            - Never quote the transcript or repeat its sentences back.
+            - Output only that sentence: no label, no preamble, no quotation marks.
+            """
         }
         do {
             let response = try await session.respond(to: "Transcript:\n\(capped)")
             let summary = response.content
                 .trimmingCharacters(in: CharacterSet(charactersIn: " \n\"'"))
-            return summary.isEmpty ? nil : summary
+            guard !summary.isEmpty else { return nil }
+            // The model sometimes ignores the rules and reads the transcript back
+            // (with or without a stray label in front). A bad summary is worse than
+            // none: the transcript's own first line already shows in the UI.
+            guard !isEcho(summary, of: text) else {
+                Log.info("Summary discarded (echoed the transcript)")
+                return nil
+            }
+            return summary
         } catch {
             Log.error("Summary generation failed: \(error.localizedDescription)")
             return nil
         }
     }
     #endif
+
+    /// True when the "summary" is essentially the transcript read back rather than a
+    /// compression of it. Compares a normalized trailing chunk, so a stray label
+    /// prefix ("Summary: ...") can't disguise an echo.
+    private static func isEcho(_ summary: String, of transcript: String) -> Bool {
+        let normalizedSummary = normalize(summary)
+        guard normalizedSummary.count >= 12 else { return false }
+        return normalize(transcript).contains(String(normalizedSummary.suffix(24)))
+    }
+
+    /// Case-, punctuation-, and whitespace-insensitive form for echo comparison.
+    private static func normalize(_ s: String) -> String {
+        s.lowercased().filter { $0.isLetter || $0.isNumber }
+    }
 }
