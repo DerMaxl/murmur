@@ -5,15 +5,23 @@
     <description>Updates for Murmur, private on-device speech-to-text for macOS.</description>
     <language>en</language>
     <item>
-      <title>Version 0.6.1</title>
+      <title>Version 0.7.0</title>
       <description><![CDATA[<ul>
-<li>Fixed talking-to-yourself memos being labelled "Speaker 1:" when there was only one speaker; solo memos now stay clean, unprefixed text.</li>
+<li>New: live transcription — watch your words appear in the HUD while you dictate (Settings → Dictation, off by default)</li>
+<li>New: on macOS 26, choose between Apple's built-in speech engine and Parakeet in Settings; fresh installs start on the Apple engine, so dictation works with nothing to download</li>
+<li>Lighter: speech models now unload after ~10 idle minutes and reload in seconds (setting, on by default), and keyboard shortcuts no longer inspect every keystroke system-wide</li>
+<li>Fixed: meeting recording could hang and fail to start with a USB or wireless-dongle headset</li>
+<li>Fixed: a transcription failure could permanently delete a meeting's audio; it is now kept and retried</li>
+<li>Fixed: a failed dictation now keeps its audio in History for retry instead of losing your words</li>
+<li>Fixed: retrying a meeting transcription no longer silently drops the other side of the conversation</li>
+<li>Fixed: quitting mid-dictation no longer leaves the system volume muted</li>
+<li>Also: a warning when the disk fills up mid-recording, updates no longer install while a dictation is still transcribing, more useful AI summaries, and many smaller fixes</li>
 </ul>]]></description>
-      <pubDate>Fri, 03 Jul 2026 14:14:20 +0000</pubDate>
-      <sparkle:version>11</sparkle:version>
-      <sparkle:shortVersionString>0.6.1</sparkle:shortVersionString>
+      <pubDate>Mon, 06 Jul 2026 07:55:15 +0000</pubDate>
+      <sparkle:version>12</sparkle:version>
+      <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.6.1/Murmur.zip" sparkle:edSignature="89kJvUAILXDEYs8TnZVD5C6xIwI8AvSMyXbwX4zttO+bUSOlcPbmvTgtGgTC86PpTJZFpUXbSFpJmREvVWsRDg==" length="5307098" type="application/octet-stream" />
+      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.7.0/Murmur.zip" sparkle:edSignature="iN/26QviO9kngUCFRR24MogvxCxufiQ8LKBH/gSMtwhyTmblmUUCTxurtEO8pay3PKc0kSS5QZpqWbysQPb6AA==" length="5362284" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
