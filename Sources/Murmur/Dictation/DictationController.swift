@@ -330,31 +330,44 @@ final class DictationController {
                 try? FileManager.default.removeItem(at: url)
             case .none:
                 Sounds.recordingStarted()   // recording is live
-                self.startPreviewLoopIfEnabled(url: url, id: id)
+                self.startLiveTranscription(url: url, id: id)
             }
         }
     }
 
-    // MARK: Live preview
+    // MARK: Live transcription (eager background pass + optional HUD preview)
 
-    /// While recording (and the setting is on), run the engine's incremental live
-    /// session on a short cadence and surface the cumulative text via `onPreview`.
-    /// Self-pacing: the next tick only starts after the previous transcription
-    /// finished, so a slow model load can't queue up work. The session's work is
-    /// reused by the final transcription when the dictation ends.
+    /// While recording, run the engine's incremental live session so finished speech
+    /// is transcribed *while you're still talking* - the final pass consumes that
+    /// work, so a long memo's text lands near-instantly on release. The HUD preview
+    /// setting only controls whether the text is *shown*; the transcription itself
+    /// runs whenever it pays off. Self-pacing: the next tick only starts after the
+    /// previous transcription finished, so a slow model load can't queue up work.
     private var previewTask: Task<Void, Never>?
 
-    private func startPreviewLoopIfEnabled(url: URL, id: Int) {
-        guard Settings.liveDictationPreview else { return }
+    private func startLiveTranscription(url: URL, id: Int) {
+        let showPreview = Settings.liveDictationPreview
+        // With the preview hidden, ticking is only worthwhile when the engine reuses
+        // the work at the end (Parakeet does; the Apple engine re-analyzes anyway).
+        guard showPreview || engine.reusesLiveWork else { return }
+        // Preview on: tick early and often - the display is the point. Preview off:
+        // start only once the dictation is long enough to plausibly benefit (a short
+        // utterance finalizes no segments, so ticking it would be pure extra work),
+        // then relax the cadence; segments close at silence gaps either way.
+        let initialDelay: Duration = showPreview ? .milliseconds(1200) : .seconds(4)
+        let cadence: Duration = showPreview ? .milliseconds(1200) : .milliseconds(2500)
         previewTask?.cancel()
         previewTask = Task { [weak self, engine] in
+            try? await Task.sleep(for: initialDelay)
             while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(1200))
                 guard !Task.isCancelled, let self,
                       self.phase != .idle, self.captureID == id else { return }
-                guard let text = await engine.livePartial(fileAt: url) else { continue }
-                guard !Task.isCancelled, self.phase != .idle, self.captureID == id else { return }
-                self.onPreview?(text)
+                if let text = await engine.livePartial(fileAt: url) {
+                    guard !Task.isCancelled, self.phase != .idle, self.captureID == id else { return }
+                    // Checked per tick, so toggling the setting mid-dictation applies.
+                    if Settings.liveDictationPreview { self.onPreview?(text) }
+                }
+                try? await Task.sleep(for: cadence)
             }
         }
     }

@@ -67,6 +67,8 @@ final class SwitchableEngine: TranscriptionEngine {
         await current.livePartial(fileAt: url)
     }
 
+    var reusesLiveWork: Bool { current.reusesLiveWork }
+
     func liveDiscard(fileAt url: URL) async {
         // Both engines, not `current`: the selection may have changed since the
         // session was created.

@@ -262,6 +262,10 @@ actor ParakeetEngine: TranscriptionEngine {
         liveSessions.removeValue(forKey: url)
     }
 
+    /// Live sessions are consumed by `transcribe(fileAt:)`, so background ticking
+    /// during a dictation is work moved earlier, not extra work.
+    nonisolated var reusesLiveWork: Bool { true }
+
     /// Finish a live session: transcribe only what the preview ticks hadn't
     /// finalized yet and stitch it onto the cached result.
     private func finishLiveSession(_ state: LiveState, url: URL,

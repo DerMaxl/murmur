@@ -32,8 +32,10 @@ The four core capabilities and the polish around them are done and released:
   (setting, default on) and reload from the CoreML cache in seconds; chord hotkeys
   register through Carbon instead of an active event tap, so idle Murmur does zero
   per-keystroke work (and the meeting hotkey no longer needs Accessibility).
-- **Live dictation preview** (setting, default off): the trailing seconds are
-  re-transcribed on a short cadence and shown in the HUD while you speak.
+- **Live dictation transcription**: finished speech segments are transcribed in the
+  background *while you speak* (Parakeet; the work is consumed by the final pass, so
+  long memos finish near-instantly). The HUD preview (setting, default off) only
+  controls whether the words are shown as they land.
 
 ## Known issues
 

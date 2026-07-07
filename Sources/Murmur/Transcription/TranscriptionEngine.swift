@@ -41,6 +41,12 @@ protocol TranscriptionEngine: Sendable {
     /// Drop any live-preview session for `url` without transcribing (the dictation
     /// was cancelled). Default no-op.
     func liveDiscard(fileAt url: URL) async
+
+    /// Whether `livePartial` work is cached and consumed by the final
+    /// `transcribe(fileAt:)`. When true, ticking in the background is worthwhile
+    /// even with no preview UI (long dictations finish near-instantly); when false
+    /// (default), background ticks would be pure extra compute.
+    var reusesLiveWork: Bool { get }
 }
 
 extension TranscriptionEngine {
@@ -48,6 +54,7 @@ extension TranscriptionEngine {
     func setReadinessHandler(_ handler: @escaping @Sendable (Bool) -> Void) async {}
     func livePartial(fileAt url: URL) async -> String? { nil }
     func liveDiscard(fileAt url: URL) async {}
+    var reusesLiveWork: Bool { false }
 }
 
 /// Result of a transcription. Segments carry per-utterance timing (for SRT export

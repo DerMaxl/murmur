@@ -29,7 +29,7 @@ So Murmur is built around one rule above all: your recording is always saved, ev
 ## Features
 
 - **Dictation anywhere:** hold a key, speak, and the text is typed at your cursor. Four interaction modes, a configurable hotkey, and your clipboard is preserved.
-- **Live preview (optional):** watch the words appear in the on-screen meter while you speak — and the work is reused, so the final text isn't transcribed twice.
+- **Transcribes while you talk:** long dictations are transcribed in the background as you speak, so the text lands almost instantly when you finish. Turn on the live preview to also watch the words appear as you go.
 - **Mutes background audio** (Spotify, Music) while you talk and restores it after. Calls in a browser or an app like Zoom are left alone.
 - **Meeting capture:** records your mic and the system audio as two tracks, with speaker labels merged into one chronological transcript.
 - **File import:** drop in a voice memo or recording to transcribe it.
