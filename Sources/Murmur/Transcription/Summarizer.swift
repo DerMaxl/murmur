@@ -38,17 +38,26 @@ enum Summarizer {
             """
             You write a one-line summary of a voice transcript (a dictation, meeting, \
             or memo). Rules:
-            - One sentence, at most 14 words, in the same language as the transcript.
+            - Exactly one sentence, at most 14 words, in the same language as the \
+            transcript.
             - Describe what it is about - the topic, decisions, or requests - in your \
-            own words, like a subject line.
+            own words, like an email subject line.
             - Never quote the transcript or repeat its sentences back.
-            - Output only that sentence: no label, no preamble, no quotation marks.
+            - Never refer to "the user" or "the speaker"; describe the content itself.
+            - Output only that one sentence: no label, no preamble, no explanation \
+            line after it, no quotation marks.
             """
         }
         do {
             let response = try await session.respond(to: "Transcript:\n\(capped)")
+            // The model sometimes returns a headline plus an explainer line despite
+            // the one-sentence rule (seen: "Job acceptance request — User seeks help
+            // drafting..."); keep only the first non-empty line, stripped of stray
+            // bullet/dash/quote decoration.
             let summary = response.content
-                .trimmingCharacters(in: CharacterSet(charactersIn: " \n\"'"))
+                .components(separatedBy: .newlines)
+                .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " \t-–—•\"'")) }
+                .first { !$0.isEmpty } ?? ""
             guard !summary.isEmpty else { return nil }
             // The model sometimes ignores the rules and reads the transcript back
             // (with or without a stray label in front). A bad summary is worse than
