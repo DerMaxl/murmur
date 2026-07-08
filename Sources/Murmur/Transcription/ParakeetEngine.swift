@@ -25,6 +25,18 @@ actor ParakeetEngine: TranscriptionEngine {
 
     enum EngineError: Error { case notPrepared }
 
+    /// The ASR rejects buffers shorter than ~300 ms ("Invalid audio data"), but VAD
+    /// can emit shorter speech blips - especially at the consumption boundaries the
+    /// live session introduces (seen in the wild: a dictation's final pass failed on
+    /// a tiny leftover segment). Pad short chunks with trailing silence rather than
+    /// letting one blip fail the whole transcription.
+    private static let minAsrSamples = Int(0.35 * 16_000)   // margin over the 300 ms floor
+
+    private static func padToMinimum(_ chunk: [Float]) -> [Float] {
+        guard chunk.count < minAsrSamples else { return chunk }
+        return chunk + [Float](repeating: 0, count: minAsrSamples - chunk.count)
+    }
+
     /// Fired on load (true) / idle unload (false), so the app can keep its
     /// "model ready" state honest across unloads.
     private var onReadinessChange: (@Sendable (Bool) -> Void)?
@@ -168,7 +180,7 @@ actor ParakeetEngine: TranscriptionEngine {
             guard end > start else { continue }
 
             var state = try TdtDecoderState()
-            let chunk = Array(samples[start..<end])
+            let chunk = Self.padToMinimum(Array(samples[start..<end]))
             let result = try await asr.transcribe(chunk, decoderState: &state, language: nil)
             let text = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { continue }
@@ -227,7 +239,7 @@ actor ParakeetEngine: TranscriptionEngine {
                 let end = min(suffix.count, seg.endSample(sampleRate: 16_000))
                 guard end > start else { continue }
                 var decoder = try TdtDecoderState()
-                let result = try await asr.transcribe(Array(suffix[start..<end]),
+                let result = try await asr.transcribe(Self.padToMinimum(Array(suffix[start..<end])),
                                                       decoderState: &decoder, language: nil)
                 let text = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 let isOpenTail = index == segments.count - 1
@@ -282,7 +294,7 @@ actor ParakeetEngine: TranscriptionEngine {
                 let end = min(suffix.count, seg.endSample(sampleRate: 16_000))
                 guard end > start else { continue }
                 var decoder = try TdtDecoderState()
-                let result = try await asr.transcribe(Array(suffix[start..<end]),
+                let result = try await asr.transcribe(Self.padToMinimum(Array(suffix[start..<end])),
                                                       decoderState: &decoder, language: nil)
                 let chunk = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !chunk.isEmpty else { continue }
