@@ -5,17 +5,15 @@
     <description>Updates for Murmur, private on-device speech-to-text for macOS.</description>
     <language>en</language>
     <item>
-      <title>Version 0.7.1</title>
+      <title>Version 0.7.2</title>
       <description><![CDATA[<ul>
-<li>Faster dictation: long dictations are now transcribed in the background as you speak, so the text lands almost instantly when you finish — even with the live preview turned off</li>
-<li>Fixed: a dictation ending on a very short final sound could fail to type its text (the audio was still saved to History)</li>
-<li>Fixed: AI summaries are now a single clean line and no longer narrate about "the user"</li>
+<li>New: re-transcribe a finished recording. Transcribe with the built-in Apple engine, later switch to Parakeet in Settings, then re-run it for a better result — from the recording's detail view, right-click in History, or the menu-bar list. Available whenever the audio is still on your Mac (dictations, which keep only text, are excluded).</li>
 </ul>]]></description>
-      <pubDate>Thu, 09 Jul 2026 11:25:12 +0000</pubDate>
-      <sparkle:version>13</sparkle:version>
-      <sparkle:shortVersionString>0.7.1</sparkle:shortVersionString>
+      <pubDate>Fri, 10 Jul 2026 12:19:03 +0000</pubDate>
+      <sparkle:version>14</sparkle:version>
+      <sparkle:shortVersionString>0.7.2</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.7.1/Murmur.zip" sparkle:edSignature="R3o/lK7oj66zDQUboSQ/UJiDiSn9QCASCnyMrMfybeQ/ZDBWnNhABydYMB60EuMbQkAi4yu+NYpPqyN+5odTBw==" length="5363537" type="application/octet-stream" />
+      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.7.2/Murmur.zip" sparkle:edSignature="wdlhvsEN32yu58DpoZ9VvTeuw3xoJ/aj2WS4DzyfdmgAZdADaXz363Mf6Om+FrM9qNNxfVIITsfz8c10QBWXAA==" length="5366557" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
