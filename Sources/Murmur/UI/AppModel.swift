@@ -167,6 +167,8 @@ final class AppModel {
     func deletePermanently(_ id: UUID) { coordinator.deletePermanently(id) }
     func emptyTrash() { coordinator.emptyTrash() }
     func transcribe(_ id: UUID) { coordinator.transcribe(id) }
+    /// Name of the engine a (re-)transcription will use now (for "Re-transcribe with …").
+    var currentEngineName: String { coordinator.currentEngineName }
     func importFile(_ url: URL) { coordinator.importFile(url) }
     func openRecordingsFolder() { coordinator.openRecordingsFolder() }
 

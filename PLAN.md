@@ -70,6 +70,25 @@ The four core capabilities and the polish around them are done and released:
   - Next experiment: capture via `AVCaptureSession` + `AVCaptureAudioDataOutput`
     (designed for shared mic access) when the device is already running somewhere.
 
+## To investigate
+
+- **Meeting transcripts get progressively more garbled the longer the recording.**
+  Reported by a user on a long meeting; words are phonetically mangled (both the mic
+  "You" track and the system track), and it worsens deeper in. Dictation (same mic →
+  16 kHz → Parakeet path, but short and mic-only) stays clean, so the pipeline itself
+  is sound — the differentiators are **length** and the **simultaneous system-audio
+  tap**. Leading suspects, in order: (1) progressive buffer/sample **drops** while the
+  mic engine and the aggregate-device tap both run for a long time on a loaded/slower
+  Mac — we concatenate whatever arrives with no gap detection, so drops splice
+  non-adjacent audio and garble words; (2) **clock drift** between the mic's input
+  device and the tap's output device (two crystals, aligned only by a fixed offset at
+  start, no drift compensation) — explains worsening turn *misordering* but not
+  within-word garbling; (3) VAD 14 s hard-cap force-cutting continuous speech
+  (secondary, boundary-only). **Next step when revisiting:** add instrumentation at
+  meeting stop — recorded-duration vs wall-clock per track (detects drops), mic-vs-
+  system duration delta (detects drift), and VAD segment count + max chunk length —
+  then have an affected user reproduce so the numbers say which it is before fixing.
+
 ## Roadmap / ideas
 
 - **Custom vocabulary**: a user-editable replacement table (wrong → right: product

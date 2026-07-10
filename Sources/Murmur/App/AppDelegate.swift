@@ -270,6 +270,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             sub.addItem(preview)
             sub.addItem(.separator())
             sub.addItem(action("Copy transcript", #selector(copyTranscriptItem), rec.id))
+            // Re-transcribe a finished recording (e.g. after switching the speech
+            // model), as long as its audio is still on disk.
+            if rec.hasTranscribableAudio {
+                sub.addItem(action("Re-transcribe", #selector(transcribeItem), rec.id))
+            }
         } else if rec.transcription == .running {
             let running = NSMenuItem(title: "Transcribing…", action: nil, keyEquivalent: "")
             running.isEnabled = false

@@ -65,10 +65,17 @@ struct RecordingDetailView: View {
             Button { model.revealInFinder(rec.id) } label: { Image(systemName: "folder") }
                 .help("Reveal in Finder")
                 .accessibilityLabel("Reveal in Finder")
-            if rec.transcription == .failed || rec.transcription == .none {
+            // (Re-)transcribe: available whenever the audio is still on disk (so not
+            // for text-only dictations). A running transcription shows a spinner in
+            // its place. A finished one offers a redo - handy after switching the
+            // speech model - labelled with the engine it will use.
+            if rec.transcription == .running {
+                ProgressView().controlSize(.small).padding(.horizontal, 4)
+            } else if rec.hasTranscribableAudio {
+                let isRedo = rec.transcription == .done
                 Button { model.transcribe(rec.id) } label: { Image(systemName: "arrow.clockwise") }
-                    .help("Transcribe")
-                    .accessibilityLabel("Transcribe")
+                    .help(isRedo ? "Re-transcribe with \(model.currentEngineName)" : "Transcribe")
+                    .accessibilityLabel(isRedo ? "Re-transcribe" : "Transcribe")
             }
             // Delete is immediate, no confirmation: it's a soft delete the user can
             // restore from Recently Deleted for 30 days.
@@ -129,6 +136,10 @@ struct RecordingDetailView: View {
     @ViewBuilder
     private var transcriptBody: some View {
         if let t = rec.transcript?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty {
+            // A re-transcribe of a finished recording keeps the old text on screen
+            // until the new run lands (meetings don't stream partials), so flag that
+            // it's re-running rather than leaving the stale text looking final.
+            if rec.transcription == .running { retranscribingBanner }
             Text(t)
                 .scaledFont(13)
                 .textSelection(.enabled)
@@ -138,5 +149,14 @@ struct RecordingDetailView: View {
         } else {
             Text("No transcript.").foregroundStyle(.secondary)
         }
+    }
+
+    private var retranscribingBanner: some View {
+        HStack(spacing: 8) {
+            ProgressView().controlSize(.small)
+            Text("Re-transcribing with \(model.currentEngineName)…").scaledFont(12).foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+        }
+        .padding(.bottom, 4 * scale)
     }
 }

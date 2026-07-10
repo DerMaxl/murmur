@@ -14,6 +14,16 @@ final class AppCoordinator {
     /// Whether the Apple speech engine exists on this macOS (26+), for the settings UI.
     var appleEngineAvailable: Bool { engine.appleEngineAvailable }
 
+    /// Display name of the engine a (re-)transcription will use right now. Drives the
+    /// "Re-transcribe with …" affordance so switching engine then re-transcribing is
+    /// an obvious action.
+    var currentEngineName: String {
+        if Settings.transcriptionEngine == .appleSpeech, appleEngineAvailable {
+            return EngineChoice.appleSpeech.displayName
+        }
+        return EngineChoice.parakeet.displayName
+    }
+
     private lazy var meeting: MeetingRecorder = {
         let m = MeetingRecorder()
         m.onLevel = { [weak self] level in

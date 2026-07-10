@@ -188,6 +188,13 @@ struct HistoryView: View {
                 if rec.transcript?.isEmpty == false {
                     Button("Copy Transcript") { model.copyTranscript(rec.id) }
                 }
+                // Re-transcribe (or transcribe) whenever the audio is still on disk;
+                // not offered for text-only dictations, which keep no audio.
+                if rec.transcription != .running, rec.hasTranscribableAudio {
+                    Button(rec.transcription == .done ? "Re-transcribe" : "Transcribe") {
+                        model.transcribe(rec.id)
+                    }
+                }
                 Button("Reveal in Finder") { model.revealInFinder(rec.id) }
                 Divider()
                 Button("Delete", role: .destructive) { deleteRow(rec.id) }
