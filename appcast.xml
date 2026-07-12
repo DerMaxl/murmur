@@ -5,15 +5,17 @@
     <description>Updates for Murmur, private on-device speech-to-text for macOS.</description>
     <language>en</language>
     <item>
-      <title>Version 0.7.2</title>
+      <title>Version 0.7.3</title>
       <description><![CDATA[<ul>
-<li>New: re-transcribe a finished recording. Transcribe with the built-in Apple engine, later switch to Parakeet in Settings, then re-run it for a better result — from the recording's detail view, right-click in History, or the menu-bar list. Available whenever the audio is still on your Mac (dictations, which keep only text, are excluded).</li>
+<li>New: optional speaker labels for your own side of a meeting. When two people share this Mac's microphone, turn on “Also label others sharing my microphone” (under speaker labels in Settings) and the most talkative becomes “You” while the others are labelled “Local”. Off by default; you can re-transcribe an existing meeting to apply it.</li>
+<li>Faster: switching your speech model in Settings now downloads it right away instead of stalling your first transcription later.</li>
+<li>Shortcuts now display command-first (⌘⌥E).</li>
 </ul>]]></description>
-      <pubDate>Fri, 10 Jul 2026 12:19:03 +0000</pubDate>
-      <sparkle:version>14</sparkle:version>
-      <sparkle:shortVersionString>0.7.2</sparkle:shortVersionString>
+      <pubDate>Sun, 12 Jul 2026 15:32:33 +0000</pubDate>
+      <sparkle:version>15</sparkle:version>
+      <sparkle:shortVersionString>0.7.3</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.7.2/Murmur.zip" sparkle:edSignature="wdlhvsEN32yu58DpoZ9VvTeuw3xoJ/aj2WS4DzyfdmgAZdADaXz363Mf6Om+FrM9qNNxfVIITsfz8c10QBWXAA==" length="5366557" type="application/octet-stream" />
+      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.7.3/Murmur.zip" sparkle:edSignature="jKZ3sLpX51r4mO8VMTAitMemRz2bKdiuPBBEnMxDYP7OaivZ+9u0dpqr0ocXYShzYl+BNgwpmrOvZqeTM5iEDw==" length="5372349" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
