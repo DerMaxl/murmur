@@ -40,7 +40,7 @@ final class AppCoordinator {
     private var meetingAudioApps: Set<String> = []
     private var sourceAppTimer: Timer?
 
-    /// Toggles meeting recording. Default ⌥⌘E; user-configurable.
+    /// Toggles meeting recording. Default ⌘⌥E; user-configurable.
     private lazy var meetingHotkey: GlobalHotkey = makeMeetingHotkey()
 
     private func makeMeetingHotkey() -> GlobalHotkey {
@@ -261,7 +261,7 @@ final class AppCoordinator {
         if isMeetingRecording { stopMeeting() } else { startMeeting() }
     }
 
-    /// Arm the meeting hotkey (default ⌥⌘E). Chords register through Carbon and need
+    /// Arm the meeting hotkey (default ⌘⌥E). Chords register through Carbon and need
     /// no permission; only a bare-modifier shortcut (which needs an event tap) is
     /// gated on Accessibility. Silent and idempotent; the menu works regardless.
     func armMeetingHotkey() {

@@ -40,7 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.applicationIconImage = icon
         }
         AudioDucker.restoreAfterCrashIfNeeded()   // unmute if a crash left us ducked
-        Settings.migrateDefaultsIfNeeded()   // move old meeting defaults (Hyper+R, ⌘E) → ⌥⌘E
+        Settings.migrateDefaultsIfNeeded()   // move old meeting defaults (Hyper+R, ⌘E) → ⌘⌥E
         Settings.applyFirstRunDefaultsIfNeeded()   // enable Launch at Login once, on first run
         NSApp.mainMenu = MainMenu.make(zoomTarget: self)   // shown while the window is open
         setupMenuBar()

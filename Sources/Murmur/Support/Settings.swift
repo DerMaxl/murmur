@@ -154,7 +154,7 @@ enum Settings {
         set { encodeShortcut(newValue, "dictationShortcut") }
     }
 
-    /// The meeting record toggle. Default: ⌥⌘E.
+    /// The meeting record toggle. Default: ⌘⌥E.
     static var meetingShortcut: Shortcut {
         get { decodeShortcut("meetingShortcut") ?? .optCmdE }
         set { encodeShortcut(newValue, "meetingShortcut") }
@@ -162,7 +162,7 @@ enum Settings {
 
     /// One-time default migrations, oldest first: Hyper+R (doesn't survive Hyperkey's
     /// event remapping) → ⌘E, then ⌘E ("Use Selection for Find" in many apps, which
-    /// the tap would swallow) → ⌥⌘E. Each leaves any other deliberate choice untouched.
+    /// the tap would swallow) → ⌘⌥E. Each leaves any other deliberate choice untouched.
     static func migrateDefaultsIfNeeded() {
         let cmdEKey = "didMigrateMeetingToCmdE"
         if !UserDefaults.standard.bool(forKey: cmdEKey) {

@@ -28,15 +28,16 @@ struct Shortcut: Codable, Equatable, Sendable {
     /// Whether this is a usable shortcut (has a key, or at least one modifier).
     var isValid: Bool { keyCode != nil || !flags.isEmpty }
 
-    /// Human-readable, e.g. "⌃⌥⌘⇧R", "Fn", "⌥Space".
+    /// Human-readable, e.g. "⌘⌥E", "Fn", "⌥Space". Command leads the modifiers so a
+    /// combo like ⌘⌥E reads command-first.
     var display: String {
         var s = ""
         let f = flags
         if f.contains(.maskSecondaryFn) { s += "Fn " }
+        if f.contains(.maskCommand) { s += "⌘" }
         if f.contains(.maskControl) { s += "⌃" }
         if f.contains(.maskAlternate) { s += "⌥" }
         if f.contains(.maskShift) { s += "⇧" }
-        if f.contains(.maskCommand) { s += "⌘" }
         if let kc = keyCode { s += Self.keyName(kc) }
         let out = s.trimmingCharacters(in: .whitespaces)
         return out.isEmpty ? "Unset" : out
@@ -46,7 +47,7 @@ struct Shortcut: Codable, Equatable, Sendable {
 
     /// Hold Fn (Globe) - the default push-to-talk trigger.
     static let fnHold = Shortcut(keyCode: nil, modifiers: .maskSecondaryFn)
-    /// ⌥⌘E - the default meeting toggle. A real modifier combo (unlike a Hyper chord,
+    /// ⌘⌥E - the default meeting toggle. A real modifier combo (unlike a Hyper chord,
     /// it survives key remappers like Hyperkey) that apps rarely claim - plain ⌘E is
     /// "Use Selection for Find" in many apps, so the tap would swallow it. E = 14.
     static let optCmdE = Shortcut(keyCode: 14, modifiers: [.maskCommand, .maskAlternate])
