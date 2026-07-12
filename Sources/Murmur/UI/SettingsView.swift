@@ -70,7 +70,7 @@ struct SettingsView: View {
                 // Progressive disclosure: the rarer own-side option only appears once
                 // speaker labels are on, so a first-time user isn't faced with it.
                 if model.labelSpeakers {
-                    Toggle("Also separate speakers on my side", isOn: $model.labelOwnSideSpeakers)
+                    Toggle("Also label others sharing my microphone", isOn: $model.labelOwnSideSpeakers)
                         .padding(.leading, 20 * scale)
                 }
             } header: {
@@ -160,7 +160,7 @@ struct SettingsView: View {
     /// (it's the least self-explanatory control), otherwise the polish/filler note.
     private var speakerSectionFooter: String {
         if model.labelSpeakers {
-            return "Speaker labels split meetings and imports by voice. Turn on “Also separate speakers on my side” only if two or more people share this Mac's microphone. Normally your side is just “You.”"
+            return "Speaker labels split meetings and imports by voice. Turn on “Also label others sharing my microphone” only if two or more people talk into this Mac in a meeting. Normally your side is just “You.”"
         }
         return model.polishTranscripts
             ? "When you change your mind mid-sentence (“the blue one, no, the red one”), an on-device AI keeps only what you meant. Adds about 1 to 2 seconds before the text appears."
