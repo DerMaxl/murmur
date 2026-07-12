@@ -67,12 +67,16 @@ struct SettingsView: View {
                 Toggle("Remove filler words (uh, um, äh)", isOn: $model.removeFillers)
                 Toggle("Tidy up stutters and false starts with AI", isOn: $model.polishTranscripts)
                 Toggle("Label each speaker in meetings and imported files", isOn: $model.labelSpeakers)
+                // Progressive disclosure: the rarer own-side option only appears once
+                // speaker labels are on, so a first-time user isn't faced with it.
+                if model.labelSpeakers {
+                    Toggle("Also separate speakers on my side", isOn: $model.labelOwnSideSpeakers)
+                        .padding(.leading, 20 * scale)
+                }
             } header: {
                 Text("How transcripts are cleaned up")
             } footer: {
-                Text(model.polishTranscripts
-                     ? "When you change your mind mid-sentence (“the blue one, no, the red one”), an on-device AI keeps only what you meant. Adds about 1 to 2 seconds before the text appears."
-                     : "Filler removal strips “uh/um”. Turn on AI tidying to also fix stutters and false starts.")
+                Text(speakerSectionFooter)
             }
 
             Section {
@@ -150,6 +154,17 @@ struct SettingsView: View {
                 .help("Reset to default")
             }
         }
+    }
+
+    /// Footer for the cleanup section: explain the own-side option when it's visible
+    /// (it's the least self-explanatory control), otherwise the polish/filler note.
+    private var speakerSectionFooter: String {
+        if model.labelSpeakers {
+            return "Speaker labels split meetings and imports by voice. Turn on “Also separate speakers on my side” only if two or more people share this Mac's microphone — normally your side is just “You.”"
+        }
+        return model.polishTranscripts
+            ? "When you change your mind mid-sentence (“the blue one, no, the red one”), an on-device AI keeps only what you meant. Adds about 1 to 2 seconds before the text appears."
+            : "Filler removal strips “uh/um”. Turn on AI tidying to also fix stutters and false starts."
     }
 
     private var appVersion: String {

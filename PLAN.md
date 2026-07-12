@@ -12,7 +12,9 @@ The four core capabilities and the polish around them are done and released:
   preserved. Holding the trigger as part of a key combo (e.g. Fn+Delete) cancels instead
   of dictating. Return / Command-Delete to finish a hands-free dictation.
 - **Meeting capture**: mic + system audio as two tracks, speaker diarization, interleaved
-  chronological transcript, source-app labelling.
+  chronological transcript, source-app labelling. Optional own-side speaker labelling
+  (Settings, off by default) diarizes the mic track too, so two people sharing one Mac's
+  mic are split into "You" (most talkative) + "Local"/"Local 2"/… instead of both "You".
 - **File import**: drag-and-drop or pick an audio file (linked, not copied).
 - **Transcription**: Parakeet TDT v3 on the Neural Engine via FluidAudio, Silero VAD
   segmentation, filler-word removal, optional AI summary + stutter cleanup (Apple
@@ -99,14 +101,6 @@ The four core capabilities and the polish around them are done and released:
   alternative — FluidAudio's CTC keyword-boosting / CTC-spotter — is still in
   development in FluidAudio and not production-ready in Swift, so the post-processing
   table is the path that works today and is engine-independent.)
-- **Speaker labels on the "You" (mic) side of meetings**: today the mic track is
-  hardcoded to "You" and never diarized — only the far-end/system track is split into
-  Speaker 1/2/… (by design; mic = one local speaker). When two people share the same
-  MacBook mic they both come out as "You". Fix: run the existing `diarizer.diarize()`
-  on `mic.caf` too, reusing `systemTurns`' labeling. Keep the single-speaker case as
-  plain "You" (no regression); when >1 voice is found, label the main/most-talkative
-  as "You" and the rest "Speaker 2/3/…" (chosen option A). Gate behind the existing
-  "Label speakers" setting.
 - **Onboarding flow**: first-run walkthrough that requests each permission with rationale
   and lets the user choose where recordings are stored. For when others install it.
 - **URL import** (YouTube etc. via yt-dlp) and audio extraction from video containers.

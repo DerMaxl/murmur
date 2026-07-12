@@ -380,9 +380,11 @@ final class AppCoordinator {
     }
 
     /// Transcribe a meeting's two tracks into one chronological conversation: your mic
-    /// is "You"; the system side is the producing app's name (or "Speaker 1 / 2 / …"
-    /// when diarization finds multiple voices). Turns from both tracks are interleaved
-    /// by time, so it reads as a back-and-forth instead of two walls of text.
+    /// is "You" (or, with own-side labelling on and two people sharing the mic, the most
+    /// talkative is "You" and the rest are "Local"/"Local 2"/…); the system side is the
+    /// producing app's name (or "Speaker 1 / 2 / …" when diarization finds multiple
+    /// voices). Turns from both tracks are interleaved by time, so it reads as a
+    /// back-and-forth instead of two walls of text.
     func transcribeMeeting(_ id: UUID, userInitiated: Bool = true) {
         guard let rec = store.recording(id), rec.transcription != .running else { return }
         store.setTranscriptionStatus(id, .running)
@@ -396,11 +398,15 @@ final class AppCoordinator {
                                                         systemStart: rec.systemStartedAt)
         Task { [self] in
             do {
-                async let mineTranscript = transcribeFile(micURL)
+                async let mineTranscriptTask = transcribeFile(micURL)
                 async let theirsTranscript = transcribeFile(systemURL)
                 async let theirsSpeakers = diarizeIfEnabled(systemURL)
+                // Empty unless own-side labelling is on (no diarizer load otherwise).
+                async let mineSpeakersTask = diarizeOwnSideIfEnabled(micURL)
 
-                let youTurns = Self.turns(from: try await mineTranscript, fallbackSpeaker: "You") { _ in "You" }
+                let mineTranscript = try await mineTranscriptTask
+                let mineSpeakers = await mineSpeakersTask
+                let youTurns = Self.myTurns(from: mineTranscript, speakers: mineSpeakers)
                 let themTurns = Self.systemTurns(from: try await theirsTranscript,
                                                  speakers: await theirsSpeakers, appName: them)
                 // Shift each track onto a shared t=0 (the two captures start a few ms apart)
@@ -451,6 +457,13 @@ final class AppCoordinator {
         return await diarizer.diarize(fileAt: url)
     }
 
+    /// Diarize the mic track only when the user opted into own-side labelling, so a
+    /// normal meeting never pays for a second diarization pass.
+    private func diarizeOwnSideIfEnabled(_ url: URL) async -> [SpeakerSegment] {
+        guard Settings.labelSpeakers, Settings.labelOwnSideSpeakers else { return [] }
+        return await diarizer.diarize(fileAt: url)
+    }
+
     /// Transcribe one meeting track. A missing file is fine (a crash may leave only
     /// one track) and yields an empty transcript; an engine error must *throw* so the
     /// caller marks the meeting `.failed` instead of mistaking the error for silence
@@ -497,6 +510,46 @@ final class AppCoordinator {
         if !segmentTurns.isEmpty { return segmentTurns }
         let whole = TextCleaner.process(transcript.text).trimmingCharacters(in: .whitespacesAndNewlines)
         return whole.isEmpty ? [] : [Turn(start: 0, speaker: fallbackSpeaker, text: whole)]
+    }
+
+    /// Your side of a meeting. Normally a single "You". With own-side labelling on and
+    /// the mic diarized into more than one voice (two people sharing the mic), the most
+    /// talkative is "You" and the rest are "Local", "Local 2", … — a distinct label
+    /// space from the far side's "Speaker N", so the two never collide. Passing no
+    /// speakers (the default, own-side labelling off) collapses to plain "You".
+    ///
+    /// Mirrors `systemTurns`' phantom-voice guard: diarization can over-detect a second
+    /// voice on a single speaker (a breath, a pause), so we only split when the diarizer
+    /// actually finds more than one id; a lone id stays plain "You".
+    private static func myTurns(from transcript: Transcript,
+                                speakers: [SpeakerSegment]) -> [Turn] {
+        let distinct = Set(speakers.map(\.speakerId))
+        guard distinct.count > 1 else {
+            return turns(from: transcript, fallbackSpeaker: "You") { _ in "You" }
+        }
+        // Most-talkative local voice becomes "You"; the others get "Local"/"Local 2"/….
+        var talkTime: [String: Double] = [:]
+        for s in speakers { talkTime[s.speakerId, default: 0] += max(0, s.end - s.start) }
+        let primary = talkTime.max { $0.value < $1.value }?.key
+        var labels: [String: String] = [:]
+        var localCount = 0
+        func label(for sid: String) -> String {
+            if sid == primary { return "You" }
+            if let existing = labels[sid] { return existing }
+            localCount += 1
+            let name = localCount == 1 ? "Local" : "Local \(localCount)"
+            labels[sid] = name
+            return name
+        }
+        func overlap(_ s: SpeakerSegment, _ seg: Transcript.Segment) -> Double {
+            max(0, min(s.end, seg.end) - max(s.start, seg.start))
+        }
+        return turns(from: transcript, fallbackSpeaker: "You") { seg in
+            let mid = (seg.start + seg.end) / 2
+            let match = speakers.first(where: { $0.start <= mid && mid <= $0.end })
+                ?? speakers.max(by: { overlap($0, seg) < overlap($1, seg) })
+            return match.map { label(for: $0.speakerId) } ?? "You"
+        }
     }
 
     /// The other side of a meeting: label each segment with the diarized speaker when

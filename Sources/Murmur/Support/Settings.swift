@@ -109,6 +109,16 @@ enum Settings {
         set { UserDefaults.standard.set(newValue, forKey: "labelSpeakers") }
     }
 
+    /// Also diarize the *mic* track, so when two people share this Mac's microphone
+    /// they're separated ("You" for the main voice, "Local"/"Local 2"/… for the rest)
+    /// instead of both being "You". Off by default and only meaningful when
+    /// `labelSpeakers` is on: it costs a second diarization pass per meeting, so the
+    /// common single-speaker case shouldn't pay for it. See PLAN.md.
+    static var labelOwnSideSpeakers: Bool {
+        get { UserDefaults.standard.object(forKey: "labelOwnSideSpeakers") as? Bool ?? false }
+        set { UserDefaults.standard.set(newValue, forKey: "labelOwnSideSpeakers") }
+    }
+
     /// Which speech-to-text engine transcribes audio. The Apple engine (macOS 26+)
     /// is built into the OS - zero download and no model memory in Murmur - but
     /// transcribes in one fixed language; Parakeet is multilingual with automatic
