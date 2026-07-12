@@ -163,11 +163,15 @@ final class AppCoordinator {
     }
 
     /// Called when the engine choice changes in Settings: warm the newly selected
-    /// engine (asset download / model load) so its first use isn't cold, and reset
-    /// readiness so the HUD messaging re-derives for the new engine.
+    /// engine so its first use isn't cold. For Parakeet this kicks off the one-time
+    /// model download *now*, the moment the user picks it, rather than stalling the
+    /// first transcription minutes later - the download is the slow part and it's
+    /// cached on disk afterwards. Always prewarms (not only when dictation is on), so
+    /// a meetings-only user gets the same head start. Resets readiness so the HUD
+    /// re-derives its "Loading model" state for the new engine.
     func prewarmNewEngineChoice() {
         engineReady = false
-        if dictation.isEnabled { prewarmEngine() }
+        prewarmEngine()
     }
 
     var dictationMode: DictationMode { Settings.dictationMode }
