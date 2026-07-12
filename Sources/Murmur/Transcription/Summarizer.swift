@@ -51,12 +51,12 @@ enum Summarizer {
         do {
             let response = try await session.respond(to: "Transcript:\n\(capped)")
             // The model sometimes returns a headline plus an explainer line despite
-            // the one-sentence rule (seen: "Job acceptance request — User seeks help
+            // the one-sentence rule (seen: "Job acceptance request - User seeks help
             // drafting..."); keep only the first non-empty line, stripped of stray
             // bullet/dash/quote decoration.
             let summary = response.content
                 .components(separatedBy: .newlines)
-                .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " \t-–—•\"'")) }
+                .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " \t-\u{2013}\u{2014}•\"'")) }
                 .first { !$0.isEmpty } ?? ""
             guard !summary.isEmpty else { return nil }
             // The model sometimes ignores the rules and reads the transcript back

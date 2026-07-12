@@ -7,7 +7,7 @@ import AppKit
 /// speaker labelling later.
 ///
 /// `@unchecked Sendable`: the mutable audio state (`isRecording`, `micStartedAt`,
-/// `mic`/`system`) is only ever touched from `startQueue` — `start`/`stop` are private and
+/// `mic`/`system`) is only ever touched from `startQueue`; `start`/`stop` are private and
 /// reached only through `startAsync`/`stopAsync`/`stopSync`, all of which hop onto that
 /// serial queue. `micStartedAt`/`systemStartedAt` are read on the main actor only after
 /// `startAsync` has resumed, which establishes the necessary ordering.

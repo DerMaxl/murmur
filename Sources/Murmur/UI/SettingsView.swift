@@ -160,7 +160,7 @@ struct SettingsView: View {
     /// (it's the least self-explanatory control), otherwise the polish/filler note.
     private var speakerSectionFooter: String {
         if model.labelSpeakers {
-            return "Speaker labels split meetings and imports by voice. Turn on “Also separate speakers on my side” only if two or more people share this Mac's microphone — normally your side is just “You.”"
+            return "Speaker labels split meetings and imports by voice. Turn on “Also separate speakers on my side” only if two or more people share this Mac's microphone. Normally your side is just “You.”"
         }
         return model.polishTranscripts
             ? "When you change your mind mid-sentence (“the blue one, no, the red one”), an on-device AI keeps only what you meant. Adds about 1 to 2 seconds before the text appears."

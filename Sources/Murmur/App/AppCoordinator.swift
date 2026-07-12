@@ -30,7 +30,7 @@ final class AppCoordinator {
             Task { @MainActor in self?.onAudioLevel?(level) }
         }
         m.onWriteFailure = { [weak self] in
-            Task { @MainActor in self?.onNotice?("Recording isn't being saved — check disk space") }
+            Task { @MainActor in self?.onNotice?("Recording isn't being saved. Check disk space.") }
         }
         return m
     }()
@@ -74,7 +74,7 @@ final class AppCoordinator {
     private func preserveFailedDictation(audioAt url: URL, duration: TimeInterval, targetApp: String?) {
         if store.adoptFailedDictation(audioAt: url, duration: duration, targetApp: targetApp) != nil {
             onStateChange?()
-            onNotice?("Transcription failed — audio saved to History")
+            onNotice?("Transcription failed. Audio saved to History.")
         } else {
             // Even the rescue failed (couldn't move the audio): still tell the user
             // rather than having the HUD silently vanish.
@@ -514,7 +514,7 @@ final class AppCoordinator {
 
     /// Your side of a meeting. Normally a single "You". With own-side labelling on and
     /// the mic diarized into more than one voice (two people sharing the mic), the most
-    /// talkative is "You" and the rest are "Local", "Local 2", … — a distinct label
+    /// talkative is "You" and the rest are "Local", "Local 2", …, a distinct label
     /// space from the far side's "Speaker N", so the two never collide. Passing no
     /// speakers (the default, own-side labelling off) collapses to plain "You".
     ///
@@ -862,7 +862,7 @@ final class AppCoordinator {
         let alert = NSAlert()
         alert.messageText = "The other side wasn't recorded"
         alert.informativeText = "This meeting's system audio came through silent, so the "
-            + "other side isn't in the transcript — only your microphone."
+            + "other side isn't in the transcript, only your microphone."
         alert.runModal()
     }
 }

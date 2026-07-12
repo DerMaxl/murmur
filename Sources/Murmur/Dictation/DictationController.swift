@@ -280,7 +280,7 @@ final class DictationController {
             Task { @MainActor in self?.onLevel?(level) }
         }
         recorder.onWriteFailure = { [weak self] in
-            Task { @MainActor in self?.onNotice?("Recording isn't being saved — check disk space") }
+            Task { @MainActor in self?.onNotice?("Recording isn't being saved. Check disk space.") }
         }
         // Record from the user's chosen mic (settings), or the system default when unset.
         recorder.inputDeviceID = CrashSafeRecorder.preferredInputDevice()
