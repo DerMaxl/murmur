@@ -95,7 +95,18 @@ The four core capabilities and the polish around them are done and released:
   names, jargon, names the model habitually misspells) applied word-boundary,
   case-aware in `TextCleaner` after every transcription, stored as a human-editable
   file under Application Support with a small editor in Settings. Parakeet can't be
-  biased at inference time, so post-processing is the right seam.
+  biased at inference time, so post-processing is the right seam. (A model-level
+  alternative — FluidAudio's CTC keyword-boosting / CTC-spotter — is still in
+  development in FluidAudio and not production-ready in Swift, so the post-processing
+  table is the path that works today and is engine-independent.)
+- **Speaker labels on the "You" (mic) side of meetings**: today the mic track is
+  hardcoded to "You" and never diarized — only the far-end/system track is split into
+  Speaker 1/2/… (by design; mic = one local speaker). When two people share the same
+  MacBook mic they both come out as "You". Fix: run the existing `diarizer.diarize()`
+  on `mic.caf` too, reusing `systemTurns`' labeling. Keep the single-speaker case as
+  plain "You" (no regression); when >1 voice is found, label the main/most-talkative
+  as "You" and the rest "Speaker 2/3/…" (chosen option A). Gate behind the existing
+  "Label speakers" setting.
 - **Onboarding flow**: first-run walkthrough that requests each permission with rationale
   and lets the user choose where recordings are stored. For when others install it.
 - **URL import** (YouTube etc. via yt-dlp) and audio extraction from video containers.
@@ -112,3 +123,9 @@ The four core capabilities and the polish around them are done and released:
 - Parakeet TDT v3 / FluidAudio: **shipped**; the multilingual step-up engine, and
   the default on macOS 15 and for installs predating the picker.
 - whisper.cpp large-v3-turbo (Metal/Core ML), for the ~75 non-European languages.
+- Evaluated and **declined for now** (Jul 2026): NVIDIA Canary-1B-v2 (live on HF, but
+  same 25 European languages as Parakeet, heavier encoder-decoder, no inherent custom
+  vocab), Qwen3-ASR (more languages — not wanted), streaming Parakeet (streaming — not
+  a current need). No compelling engine to add given Apple + Parakeet already cover the
+  need; revisit if FluidAudio's Canary/CTC custom-vocab lands or non-European languages
+  become a requirement.
