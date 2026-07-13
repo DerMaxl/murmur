@@ -137,12 +137,19 @@ final class AppCoordinator {
     /// (the caller then shows "Transcribing").
     var modelPreparingMessage: String? {
         if engineReady { return nil }
-        // Deliberately no percentage: FluidAudio only reports progress per finished
-        // file, and the Parakeet model is dominated by one ~430 MB file, so a percent
-        // would sit frozen (e.g. at 5%) for almost the whole download and look hung.
-        // The HUD animates a trailing ellipsis, which honestly signals activity.
-        if case .downloading = modelPreparation { return "Downloading model" }
+        // ParakeetEngine measures the first-run download on disk and hands us a true
+        // 0...1 fraction, so this climbs smoothly instead of sitting frozen.
+        if let fraction = modelDownloadFraction {
+            return "Downloading model \(Int((fraction * 100).rounded()))%"
+        }
         return "Loading model"
+    }
+
+    /// Live first-run download progress (0...1) while the model is fetching, or nil
+    /// otherwise. Drives the Settings progress bar and the HUD percentage.
+    var modelDownloadFraction: Double? {
+        guard !engineReady, case .downloading(let fraction) = modelPreparation else { return nil }
+        return max(0, min(1, fraction))
     }
 
     init() {

@@ -157,6 +157,14 @@ final class AppModel {
         if autoCopyToClipboard != Settings.autoCopyToClipboard { autoCopyToClipboard = Settings.autoCopyToClipboard }
         if soundEffects != Settings.soundEffects { soundEffects = Settings.soundEffects }
         if autoDeleteAfter != Settings.autoDeleteAfter { autoDeleteAfter = Settings.autoDeleteAfter }
+        // Live download progress for the Settings bar. When it finishes, re-measure so
+        // the "Additional models" size is immediately accurate rather than stale.
+        let fraction = coordinator.modelDownloadFraction
+        if modelDownloadFraction != fraction {
+            let justFinished = modelDownloadFraction != nil && fraction == nil
+            modelDownloadFraction = fraction
+            if justFinished { refreshStorage() }
+        }
     }
 
     // MARK: Per-recording actions (routed to the coordinator)
@@ -208,6 +216,10 @@ final class AppModel {
     // MARK: Storage
 
     var storage = StorageInfo.Sizes()
+
+    /// Live first-run model-download progress (0...1) for the Settings progress bar, or
+    /// nil when no download is in flight. Mirrored from the coordinator in `sync()`.
+    var modelDownloadFraction: Double?
 
     /// Recompute on-disk sizes when the Settings pane appears. The filesystem walk runs
     /// off the main actor so a cold cache (or a large model dir) doesn't stall the UI.

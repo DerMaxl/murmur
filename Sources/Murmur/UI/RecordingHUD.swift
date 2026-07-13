@@ -248,10 +248,17 @@ final class RecordingHUD {
 
     private func tick() {
         if let message = processingMessage {
-            // Animate a trailing ellipsis (cycles ~2.5x/sec at 15 fps).
-            animFrame += 1
-            let dots = (animFrame / 6) % 4
-            statusLabel.stringValue = message + String(repeating: ".", count: dots)
+            // A determinate message (a download percentage) already conveys progress,
+            // so it gets no animated ellipsis; the dots are only for indeterminate
+            // waits ("Loading model", "Transcribing", "Starting").
+            if message.hasSuffix("%") {
+                statusLabel.stringValue = message
+            } else {
+                // Animate a trailing ellipsis (cycles ~2.5x/sec at 15 fps).
+                animFrame += 1
+                let dots = (animFrame / 6) % 4
+                statusLabel.stringValue = message + String(repeating: ".", count: dots)
+            }
             return
         }
 

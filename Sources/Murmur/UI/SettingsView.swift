@@ -82,12 +82,20 @@ struct SettingsView: View {
             Section {
                 if model.appleEngineAvailable {
                     Picker("Speech-to-text model", selection: $model.transcriptionEngine) {
-                        ForEach(EngineChoice.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                        ForEach(EngineChoice.allCases, id: \.self) { Text($0.pickerLabel).tag($0) }
                     }
                 } else {
                     LabeledContent("Speech-to-text model", value: "Parakeet TDT v3")
                 }
-                LabeledContent("Space Parakeet uses", value: StorageInfo.format(model.storage.model))
+                if let fraction = model.modelDownloadFraction {
+                    ProgressView(value: fraction) {
+                        Text("Downloading model")
+                    } currentValueLabel: {
+                        Text("\(Int((fraction * 100).rounded()))%")
+                    }
+                } else {
+                    LabeledContent("Additional models", value: StorageInfo.format(model.storage.model))
+                }
                 Toggle("Free model memory when idle", isOn: $model.unloadModelsWhenIdle)
             } header: {
                 Text("Transcription model")

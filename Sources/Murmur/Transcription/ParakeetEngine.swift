@@ -16,6 +16,24 @@ private final class PrepHandlerBox: @unchecked Sendable {
     }
 }
 
+/// Minimal lock-guarded Int shared between the download poller, the FluidAudio
+/// progress callback, and the actor - a monotonic gate/flag that none of them can
+/// touch as actor-isolated state.
+private final class AtomicInt: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: Int
+    init(_ v: Int) { value = v }
+    /// Store `v` and return true only when it is strictly greater than the current
+    /// value - a one-way latch for flags and a whole-percent gate for progress.
+    @discardableResult func raise(to v: Int) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        guard v > value else { return false }
+        value = v
+        return true
+    }
+    func get() -> Int { lock.lock(); defer { lock.unlock() }; return value }
+}
+
 /// Default speech engine: NVIDIA Parakeet TDT v3 on the Apple Neural Engine via
 /// FluidAudio. One multilingual model covers German, English, and Dutch (plus 22
 /// other European languages) with automatic language detection.
@@ -119,16 +137,35 @@ actor ParakeetEngine: TranscriptionEngine {
             prep.notify(.loading)
             if asr == nil {
                 Log.info("Loading Parakeet v3 models (first run downloads them)...")
-                // Report the first-run download so the user sees "Downloading model X%"
-                // instead of a stuck "Loading model" during a large one-time fetch.
+                // Show a real, smoothly-climbing "Downloading model X%" on the first-run
+                // fetch. FluidAudio's own progress only fires per finished file, and the
+                // model is one ~445 MB encoder file, so its percentage would sit frozen
+                // for the whole download. Instead we measure bytes on disk ourselves: the
+                // cached model dir (completed files) plus the file URLSession is currently
+                // writing (a CFNetworkDownload temp), against the known ~470 MB total.
+                //
+                // FluidAudio's callbacks are still used, but only for phase: a real
+                // download (totalFiles > 0) arms the poller; the CoreML compile stops it
+                // and shows "Loading model". A cached load (totalFiles == 0) never arms
+                // the poller, so it stays "Loading model" with no bogus download percent.
+                let downloading = AtomicInt(0)   // 1 once FluidAudio confirms files to fetch
+                let compiling = AtomicInt(0)     // 1 once the post-download compile begins
                 let progress: DownloadUtils.ProgressHandler = { p in
                     switch p.phase {
-                    case .downloading: prep.notify(.downloading(fraction: p.fractionCompleted))
-                    // Listing the remote files and compiling after download are both
-                    // quick pre/post steps; show them as the plain loading state.
-                    case .listing, .compiling: prep.notify(.loading)
+                    case .downloading(_, let totalFiles):
+                        if totalFiles > 0 { downloading.raise(to: 1) }
+                    // Listing the remote files is a quick pre-step; leave the HUD on the
+                    // "Loading model" state it already shows.
+                    case .listing:
+                        break
+                    case .compiling:
+                        compiling.raise(to: 1)
+                        prep.notify(.loading)
                     }
                 }
+                let poller = Self.startDownloadPoller(notifying: prep, isDownloading: downloading,
+                                                      isCompiling: compiling)
+                defer { poller.cancel() }
                 let models = try await AsrModels.downloadAndLoad(version: .v3, progressHandler: progress)
                 let manager = AsrManager(config: .default)
                 try await manager.loadModels(models)
@@ -151,6 +188,86 @@ actor ParakeetEngine: TranscriptionEngine {
             scheduleIdleUnload()
             throw error
         }
+    }
+
+    // MARK: First-run download progress
+
+    /// Measured bytes of a first-run Parakeet v3 download - one ~445 MB encoder plus
+    /// smaller decoder/joint/preprocessor files (~485 MB total; the picker rounds it to
+    /// ~500 MB). Kept close to the true byte count so the percentage reaches ~99% right
+    /// as the download finishes; it's capped at 99% until the compile step regardless.
+    private static let expectedDownloadBytes: Int64 = 485_000_000
+
+    /// Drive a smooth "Downloading model X%" by polling bytes on disk, because
+    /// FluidAudio only reports progress per finished file and the model is dominated by
+    /// one ~445 MB file (so its own percentage would sit frozen). Runs only while a real
+    /// download is in flight - armed by `isDownloading`, silenced once `isCompiling` -
+    /// and reports whole-percent increases through `prep`. The caller cancels it once
+    /// `downloadAndLoad` returns.
+    private static func startDownloadPoller(notifying prep: PrepHandlerBox,
+                                            isDownloading: AtomicInt,
+                                            isCompiling: AtomicInt) -> Task<Void, Never> {
+        Task.detached(priority: .utility) {
+            let lastPercent = AtomicInt(0)   // whole-percent gate (0 so "0%" is never shown)
+            while !Task.isCancelled {
+                if isDownloading.get() == 1, isCompiling.get() == 0 {
+                    let bytes = downloadedBytesOnDisk()
+                    // Cap at 99%: the final step to ready is the CoreML compile, shown
+                    // as "Loading model", not part of the download bar.
+                    let percent = min(99, Int(Double(bytes) / Double(expectedDownloadBytes) * 100))
+                    if lastPercent.raise(to: percent) {
+                        prep.notify(.downloading(fraction: Double(percent) / 100))
+                    }
+                }
+                try? await Task.sleep(for: .milliseconds(400))
+            }
+        }
+    }
+
+    /// Bytes fetched so far: the model cache dir (files already moved into place) plus
+    /// the file URLSession is presently writing (its `CFNetworkDownload` temp), which is
+    /// where the big encoder accumulates before it is moved in.
+    private static func downloadedBytesOnDisk() -> Int64 {
+        (modelCacheDir.map(directorySize) ?? 0) + inflightTempBytes()
+    }
+
+    /// FluidAudio's on-disk cache for the v3 model (tracks its cache layout - only used
+    /// to observe download progress, so a layout change just makes the bar coarser).
+    private static var modelCacheDir: URL? {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("FluidAudio/Models/parakeet-tdt-0.6b-v3", isDirectory: true)
+    }
+
+    /// Total size of the files under `url` (0 if it doesn't exist yet).
+    private static func directorySize(_ url: URL) -> Int64 {
+        guard let enumerator = FileManager.default.enumerator(
+            at: url, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles])
+        else { return 0 }
+        var total: Int64 = 0
+        for case let file as URL in enumerator {
+            total += Int64((try? file.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
+        }
+        return total
+    }
+
+    /// Size of the URLSession download temp file currently being written: the largest
+    /// `CFNetworkDownload*` in the temp dir touched in the last 20s. The recency filter
+    /// ignores a stale temp left behind by an earlier interrupted download.
+    private static func inflightTempBytes() -> Int64 {
+        let tmp = URL(fileURLWithPath: NSTemporaryDirectory())
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: tmp, includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey],
+            options: [.skipsHiddenFiles]) else { return 0 }
+        let cutoff = Date().addingTimeInterval(-20)
+        var best: Int64 = 0
+        for file in files where file.lastPathComponent.hasPrefix("CFNetworkDownload") {
+            guard let values = try? file.resourceValues(
+                    forKeys: [.fileSizeKey, .contentModificationDateKey]),
+                  let size = values.fileSize, let modified = values.contentModificationDate,
+                  modified > cutoff else { continue }
+            best = max(best, Int64(size))
+        }
+        return best
     }
 
     /// Load the ASR + VAD models now (in the background), so the first dictation or

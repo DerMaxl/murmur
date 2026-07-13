@@ -11,6 +11,21 @@ enum EngineChoice: String, CaseIterable, Sendable {
         case .appleSpeech: return "Apple (built into macOS)"
         }
     }
+
+    /// Approximate one-time model download for this engine, or nil when nothing is
+    /// fetched (Apple's engine ships with macOS). Shown in the engine picker so people
+    /// know what a first-run Parakeet download costs before selecting it.
+    var approxDownloadSize: String? {
+        switch self {
+        case .parakeet: return "~500 MB"
+        case .appleSpeech: return nil
+        }
+    }
+
+    /// Picker label: the name plus the download size when there is one.
+    var pickerLabel: String {
+        approxDownloadSize.map { "\(displayName) · \($0) download" } ?? displayName
+    }
 }
 
 /// Routes every call to the engine currently selected in Settings, so switching
