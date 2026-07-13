@@ -1,5 +1,20 @@
 import Foundation
 
+/// Where the engine is in getting its model ready, so the UI can tell the user what
+/// the wait actually is (a one-time download is very different from a quick load).
+enum ModelPreparation: Sendable {
+    /// First-run model download in progress; `fraction` is 0...1.
+    case downloading(fraction: Double)
+    /// Compiling / loading the model into memory (fast on subsequent runs).
+    case loading
+    /// Ready to transcribe.
+    case ready
+    /// Freed after idle (see `Settings.unloadModelsWhenIdle`); reloads on next use.
+    case unloaded
+
+    var isReady: Bool { if case .ready = self { return true }; return false }
+}
+
 /// The single seam for speech-to-text. Swapping models (Parakeet → whisper.cpp →
 /// Apple SpeechAnalyzer) means implementing this protocol and pointing the app at
 /// the new type, no other code changes.
@@ -24,11 +39,11 @@ protocol TranscriptionEngine: Sendable {
     @discardableResult
     func prewarm() async -> Bool
 
-    /// Register a callback fired when the engine's readiness changes: `true` when the
-    /// model finishes loading, `false` when the engine frees its models after idling
-    /// (see `Settings.unloadModelsWhenIdle`). Drives the HUD's "Loading model" vs
-    /// "Transcribing" message. Default: never fires (engines that are always ready).
-    func setReadinessHandler(_ handler: @escaping @Sendable (Bool) -> Void) async
+    /// Register a callback fired as the model is prepared: downloading (with a
+    /// fraction), loading, ready, or unloaded after idle. Drives the HUD's
+    /// "Downloading model 42%" / "Loading model" / "Transcribing" text. Default: never
+    /// fires (engines that are always ready, e.g. the OS-managed Apple engine).
+    func setPreparationHandler(_ handler: @escaping @Sendable (ModelPreparation) -> Void) async
 
     /// One live-preview tick over a file that is *still being written*: returns the
     /// cumulative transcript so far (finalized speech plus a rough take on the still-
@@ -51,7 +66,7 @@ protocol TranscriptionEngine: Sendable {
 
 extension TranscriptionEngine {
     func prewarm() async -> Bool { true }
-    func setReadinessHandler(_ handler: @escaping @Sendable (Bool) -> Void) async {}
+    func setPreparationHandler(_ handler: @escaping @Sendable (ModelPreparation) -> Void) async {}
     func livePartial(fileAt url: URL) async -> String? { nil }
     func liveDiscard(fileAt url: URL) async {}
     var reusesLiveWork: Bool { false }

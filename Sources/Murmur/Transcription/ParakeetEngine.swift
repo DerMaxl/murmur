@@ -37,12 +37,12 @@ actor ParakeetEngine: TranscriptionEngine {
         return chunk + [Float](repeating: 0, count: minAsrSamples - chunk.count)
     }
 
-    /// Fired on load (true) / idle unload (false), so the app can keep its
-    /// "model ready" state honest across unloads.
-    private var onReadinessChange: (@Sendable (Bool) -> Void)?
+    /// Fired as the model is prepared (download %, load, ready) and on idle unload, so
+    /// the app can tell the user what the wait is and keep "model ready" honest.
+    private var onPreparation: (@Sendable (ModelPreparation) -> Void)?
 
-    func setReadinessHandler(_ handler: @escaping @Sendable (Bool) -> Void) {
-        onReadinessChange = handler
+    func setPreparationHandler(_ handler: @escaping @Sendable (ModelPreparation) -> Void) {
+        onPreparation = handler
     }
 
     // MARK: Idle unload
@@ -79,7 +79,7 @@ actor ParakeetEngine: TranscriptionEngine {
         asr = nil
         vad = nil
         Log.info("Speech models unloaded after idle")
-        onReadinessChange?(false)
+        onPreparation?(.unloaded)
     }
 
     /// In-flight model load, so concurrent callers join one load instead of each
@@ -94,10 +94,24 @@ actor ParakeetEngine: TranscriptionEngine {
         // In use: an unload timer from a previous transcription must not fire mid-run.
         idleUnloadTask?.cancel()
         guard asr == nil || vad == nil else { return }
+        // Captured into a local so the (@Sendable) download progress block, called on
+        // an arbitrary queue, doesn't touch actor-isolated state directly.
+        let notify = onPreparation
         let task = loadTask ?? Task {
+            notify?(.loading)
             if asr == nil {
                 Log.info("Loading Parakeet v3 models (first run downloads them)...")
-                let models = try await AsrModels.downloadAndLoad(version: .v3)
+                // Report the first-run download so the user sees "Downloading model X%"
+                // instead of a stuck "Loading model" during a large one-time fetch.
+                let progress: DownloadUtils.ProgressHandler = { p in
+                    switch p.phase {
+                    case .downloading: notify?(.downloading(fraction: p.fractionCompleted))
+                    // Listing the remote files and compiling after download are both
+                    // quick pre/post steps; show them as the plain loading state.
+                    case .listing, .compiling: notify?(.loading)
+                    }
+                }
+                let models = try await AsrModels.downloadAndLoad(version: .v3, progressHandler: progress)
                 let manager = AsrManager(config: .default)
                 try await manager.loadModels(models)
                 asr = manager
@@ -107,7 +121,7 @@ actor ParakeetEngine: TranscriptionEngine {
                 vad = try await VadManager(config: .default)
             }
             Log.info("Speech models ready")
-            onReadinessChange?(true)
+            notify?(.ready)
         }
         loadTask = task
         defer { loadTask = nil }

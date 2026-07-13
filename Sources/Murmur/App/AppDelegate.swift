@@ -144,14 +144,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             : starting ? .starting
             : processing ? .processing
             : .hidden
-        guard desired != hudState else { return }
-        hudState = desired
-        switch desired {
-        case .starting:   hud.showProcessing("Starting")
-        case .recording:  hud.show()
-        case .processing: hud.showProcessing(coordinator.engineReady ? "Transcribing" : "Loading model")
-        case .hidden:     hud.hide()
+        if desired != hudState {
+            hudState = desired
+            switch desired {
+            case .starting:   hud.showProcessing("Starting")
+            case .recording:  hud.show()
+            case .processing: hud.showProcessing(processingMessage)
+            case .hidden:     hud.hide()
+            }
+        } else if desired == .processing {
+            // Stay in processing but keep the message current, so a download
+            // percentage (or the flip to "Transcribing" once ready) shows live.
+            hud.updateProcessing(processingMessage)
         }
+    }
+
+    /// The HUD's processing-state text: a model download/load status while the engine
+    /// isn't ready, otherwise "Transcribing".
+    private var processingMessage: String {
+        coordinator.modelPreparingMessage ?? "Transcribing"
     }
 
     private func setupMenuBar() {

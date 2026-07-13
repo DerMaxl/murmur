@@ -52,14 +52,14 @@ final class SwitchableEngine: TranscriptionEngine {
         await current.prewarm()
     }
 
-    func setReadinessHandler(_ handler: @escaping @Sendable (Bool) -> Void) async {
-        // Only Parakeet loads/unloads models in-process; the Apple engine's model
+    func setPreparationHandler(_ handler: @escaping @Sendable (ModelPreparation) -> Void) async {
+        // Only Parakeet loads/downloads models in-process; the Apple engine's model
         // is managed by the OS and is effectively always ready.
-        await parakeet.setReadinessHandler { ready in
-            // A background Parakeet idle-unload must not flip the app to "Loading
-            // model" while the (always-ready) Apple engine is the one selected.
-            if !ready, Settings.transcriptionEngine == .appleSpeech { return }
-            handler(ready)
+        await parakeet.setPreparationHandler { prep in
+            // A background Parakeet download/unload must not drive the HUD while the
+            // (always-ready) Apple engine is the one selected.
+            if !prep.isReady, Settings.transcriptionEngine == .appleSpeech { return }
+            handler(prep)
         }
     }
 

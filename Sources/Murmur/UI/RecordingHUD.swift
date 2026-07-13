@@ -142,6 +142,14 @@ final class RecordingHUD {
         ensureVisible()
     }
 
+    /// Update the processing message in place (e.g. the download percentage ticking
+    /// up) without resetting the panel; the timer keeps animating the trailing dots.
+    /// No-op unless the HUD is already in its processing state.
+    func updateProcessing(_ message: String) {
+        guard processingMessage != nil, processingMessage != message else { return }
+        processingMessage = message
+    }
+
     /// Briefly show a one-line message, then move on. Outside a capture (a recording
     /// that couldn't start) the panel auto-hides afterwards. *During* a capture (the
     /// disk-full warning fires mid-recording) the notice only overlays the meter and

@@ -123,15 +123,39 @@ final class AppCoordinator {
 
     /// Whether the speech model has finished loading. Drives the HUD's "Loading model"
     /// vs "Transcribing" message while a dictation is finishing. Kept honest across
-    /// idle unloads by the engine's readiness handler (wired in `init`).
+    /// idle unloads by the engine's preparation handler (wired in `init`).
     private(set) var engineReady = false
+
+    /// Latest model-preparation state, so the HUD can say "Downloading model 42%"
+    /// during a first-run download rather than a stuck "Loading model".
+    private var modelPreparation: ModelPreparation = .unloaded
+    /// Last message we refreshed the UI for, to throttle the frequent download-progress
+    /// callbacks down to whole-percent changes.
+    private var lastPrepMessage: String?
+
+    /// What the HUD should show while the model isn't ready yet, or nil when it is
+    /// (the caller then shows "Transcribing").
+    var modelPreparingMessage: String? {
+        if engineReady { return nil }
+        if case .downloading(let fraction) = modelPreparation {
+            let percent = Int((max(0, min(1, fraction)) * 100).rounded())
+            return "Downloading model \(percent)%"
+        }
+        return "Loading model"
+    }
 
     init() {
         Task { [engine] in
-            await engine.setReadinessHandler { [weak self] ready in
+            await engine.setPreparationHandler { [weak self] prep in
                 Task { @MainActor in
-                    guard let self, self.engineReady != ready else { return }
-                    self.engineReady = ready
+                    guard let self else { return }
+                    self.modelPreparation = prep
+                    self.engineReady = prep.isReady
+                    // Download progress fires often; only refresh when the visible
+                    // message (whole percents) actually changes.
+                    let message = self.modelPreparingMessage ?? "ready"
+                    guard message != self.lastPrepMessage else { return }
+                    self.lastPrepMessage = message
                     self.onStateChange?()
                 }
             }
