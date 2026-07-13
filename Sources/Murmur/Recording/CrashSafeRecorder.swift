@@ -273,9 +273,28 @@ final class CrashSafeRecorder: @unchecked Sendable {
     /// Every input-capable device currently present, for the mic picker.
     static func availableInputDevices() -> [InputDevice] {
         allDevices().compactMap { id in
-            guard hasInputStreams(id), let uid = deviceUID(id) else { return nil }
+            guard hasInputStreams(id), isSelectableMic(id), let uid = deviceUID(id) else { return nil }
             return InputDevice(id: id, uid: uid, name: deviceName(id) ?? "Unknown microphone")
         }
+    }
+
+    /// Excludes devices that have input streams but aren't real, user-pickable mics:
+    /// system aggregate devices (e.g. "CADefaultDeviceAggregate", which CoreAudio spins
+    /// up during a FaceTime call or when an app taps the default input) and any device
+    /// its driver marks hidden. Without this they leak into the picker as mystery rows.
+    private static func isSelectableMic(_ device: AudioDeviceID) -> Bool {
+        transportType(device) != kAudioDeviceTransportTypeAggregate && !isHidden(device)
+    }
+
+    /// Whether the device's driver marks it hidden (not intended for user selection).
+    private static func isHidden(_ device: AudioDeviceID) -> Bool {
+        var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyIsHidden,
+                                                 mScope: kAudioObjectPropertyScopeGlobal,
+                                                 mElement: kAudioObjectPropertyElementMain)
+        var value: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        let status = AudioObjectGetPropertyData(device, &address, 0, nil, &size, &value)
+        return status == noErr && value != 0
     }
 
     /// A device's persistent UID (stable across reconnects/reboots), or nil.
