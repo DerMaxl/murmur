@@ -71,7 +71,6 @@ struct SettingsView: View {
                 // speaker labels are on, so a first-time user isn't faced with it.
                 if model.labelSpeakers {
                     Toggle("Also label others sharing my microphone", isOn: $model.labelOwnSideSpeakers)
-                        .padding(.leading, 20 * scale)
                 }
             } header: {
                 Text("How transcripts are cleaned up")
