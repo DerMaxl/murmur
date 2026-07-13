@@ -137,27 +137,30 @@ final class AppCoordinator {
     /// (the caller then shows "Transcribing").
     var modelPreparingMessage: String? {
         if engineReady { return nil }
-        if case .downloading(let fraction) = modelPreparation {
-            let percent = Int((max(0, min(1, fraction)) * 100).rounded())
-            return "Downloading model \(percent)%"
-        }
+        // Deliberately no percentage: FluidAudio only reports progress per finished
+        // file, and the Parakeet model is dominated by one ~430 MB file, so a percent
+        // would sit frozen (e.g. at 5%) for almost the whole download and look hung.
+        // The HUD animates a trailing ellipsis, which honestly signals activity.
+        if case .downloading = modelPreparation { return "Downloading model" }
         return "Loading model"
     }
 
     init() {
-        Task { [engine] in
-            await engine.setPreparationHandler { [weak self] prep in
-                Task { @MainActor in
-                    guard let self else { return }
-                    self.modelPreparation = prep
-                    self.engineReady = prep.isReady
-                    // Download progress fires often; only refresh when the visible
-                    // message (whole percents) actually changes.
-                    let message = self.modelPreparingMessage ?? "ready"
-                    guard message != self.lastPrepMessage else { return }
-                    self.lastPrepMessage = message
-                    self.onStateChange?()
-                }
+        // Registered synchronously (not in a Task) so the handler is in place before
+        // any prewarm can start downloading - otherwise early progress events, which
+        // is exactly the first-run download we want to show, would be dropped.
+        engine.setPreparationHandler { [weak self] prep in
+            Task { @MainActor in
+                guard let self else { return }
+                self.modelPreparation = prep
+                self.engineReady = prep.isReady
+                // Download progress fires often; only refresh when the visible
+                // message (whole percents) actually changes.
+                let message = self.modelPreparingMessage ?? "ready"
+                guard message != self.lastPrepMessage else { return }
+                self.lastPrepMessage = message
+                Log.info("Model preparation: \(message)")
+                self.onStateChange?()
             }
         }
     }

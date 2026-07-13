@@ -1,6 +1,21 @@
 import Foundation
 import FluidAudio
 
+/// Thread-safe holder for the model-preparation callback, so it can be set
+/// synchronously and invoked from any queue (the ASR download reports progress off
+/// the actor).
+private final class PrepHandlerBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var handler: (@Sendable (ModelPreparation) -> Void)?
+    func set(_ h: @escaping @Sendable (ModelPreparation) -> Void) {
+        lock.lock(); handler = h; lock.unlock()
+    }
+    func notify(_ p: ModelPreparation) {
+        lock.lock(); let h = handler; lock.unlock()
+        h?(p)
+    }
+}
+
 /// Default speech engine: NVIDIA Parakeet TDT v3 on the Apple Neural Engine via
 /// FluidAudio. One multilingual model covers German, English, and Dutch (plus 22
 /// other European languages) with automatic language detection.
@@ -38,11 +53,14 @@ actor ParakeetEngine: TranscriptionEngine {
     }
 
     /// Fired as the model is prepared (download %, load, ready) and on idle unload, so
-    /// the app can tell the user what the wait is and keep "model ready" honest.
-    private var onPreparation: (@Sendable (ModelPreparation) -> Void)?
+    /// the app can tell the user what the wait is and keep "model ready" honest. Held
+    /// in a nonisolated, lock-guarded box so it can be registered synchronously at
+    /// startup (before any prewarm begins downloading) and read live from the download
+    /// progress block on an arbitrary queue.
+    private let prep = PrepHandlerBox()
 
-    func setPreparationHandler(_ handler: @escaping @Sendable (ModelPreparation) -> Void) {
-        onPreparation = handler
+    nonisolated func setPreparationHandler(_ handler: @escaping @Sendable (ModelPreparation) -> Void) {
+        prep.set(handler)
     }
 
     // MARK: Idle unload
@@ -79,7 +97,7 @@ actor ParakeetEngine: TranscriptionEngine {
         asr = nil
         vad = nil
         Log.info("Speech models unloaded after idle")
-        onPreparation?(.unloaded)
+        prep.notify(.unloaded)
     }
 
     /// In-flight model load, so concurrent callers join one load instead of each
@@ -94,21 +112,21 @@ actor ParakeetEngine: TranscriptionEngine {
         // In use: an unload timer from a previous transcription must not fire mid-run.
         idleUnloadTask?.cancel()
         guard asr == nil || vad == nil else { return }
-        // Captured into a local so the (@Sendable) download progress block, called on
-        // an arbitrary queue, doesn't touch actor-isolated state directly.
-        let notify = onPreparation
+        // The box is Sendable and reads the handler live, so the @Sendable download
+        // progress block (called on an arbitrary queue) can report through it safely.
+        let prep = self.prep
         let task = loadTask ?? Task {
-            notify?(.loading)
+            prep.notify(.loading)
             if asr == nil {
                 Log.info("Loading Parakeet v3 models (first run downloads them)...")
                 // Report the first-run download so the user sees "Downloading model X%"
                 // instead of a stuck "Loading model" during a large one-time fetch.
                 let progress: DownloadUtils.ProgressHandler = { p in
                     switch p.phase {
-                    case .downloading: notify?(.downloading(fraction: p.fractionCompleted))
+                    case .downloading: prep.notify(.downloading(fraction: p.fractionCompleted))
                     // Listing the remote files and compiling after download are both
                     // quick pre/post steps; show them as the plain loading state.
-                    case .listing, .compiling: notify?(.loading)
+                    case .listing, .compiling: prep.notify(.loading)
                     }
                 }
                 let models = try await AsrModels.downloadAndLoad(version: .v3, progressHandler: progress)
@@ -121,7 +139,7 @@ actor ParakeetEngine: TranscriptionEngine {
                 vad = try await VadManager(config: .default)
             }
             Log.info("Speech models ready")
-            notify?(.ready)
+            prep.notify(.ready)
         }
         loadTask = task
         defer { loadTask = nil }

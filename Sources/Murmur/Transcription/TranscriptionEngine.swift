@@ -41,9 +41,11 @@ protocol TranscriptionEngine: Sendable {
 
     /// Register a callback fired as the model is prepared: downloading (with a
     /// fraction), loading, ready, or unloaded after idle. Drives the HUD's
-    /// "Downloading model 42%" / "Loading model" / "Transcribing" text. Default: never
-    /// fires (engines that are always ready, e.g. the OS-managed Apple engine).
-    func setPreparationHandler(_ handler: @escaping @Sendable (ModelPreparation) -> Void) async
+    /// "Downloading model 42%" / "Loading model" / "Transcribing" text. Synchronous so
+    /// it can be registered before any prewarm starts downloading (otherwise early
+    /// progress events would be dropped). Default: never fires (engines that are always
+    /// ready, e.g. the OS-managed Apple engine).
+    func setPreparationHandler(_ handler: @escaping @Sendable (ModelPreparation) -> Void)
 
     /// One live-preview tick over a file that is *still being written*: returns the
     /// cumulative transcript so far (finalized speech plus a rough take on the still-
@@ -66,7 +68,7 @@ protocol TranscriptionEngine: Sendable {
 
 extension TranscriptionEngine {
     func prewarm() async -> Bool { true }
-    func setPreparationHandler(_ handler: @escaping @Sendable (ModelPreparation) -> Void) async {}
+    func setPreparationHandler(_ handler: @escaping @Sendable (ModelPreparation) -> Void) {}
     func livePartial(fileAt url: URL) async -> String? { nil }
     func liveDiscard(fileAt url: URL) async {}
     var reusesLiveWork: Bool { false }
