@@ -270,6 +270,33 @@ actor ParakeetEngine: TranscriptionEngine {
         return best
     }
 
+    // MARK: Stale cache cleanup
+
+    /// Speech-model caches from older app versions that this build no longer loads.
+    /// Murmur now uses Parakeet v3, so the v2 cache (~440 MB) that earlier versions
+    /// downloaded is dead weight. Add to this list when a future version supersedes v3.
+    private static let staleModelDirNames = ["parakeet-tdt-0.6b-v2-coreml"]
+
+    /// One-shot, best-effort removal of `staleModelDirNames` to reclaim the space an
+    /// upgrade left behind. Safe to call on every launch (off the main thread): it only
+    /// touches those exact directories, is a cheap no-op once they're gone, and never
+    /// throws.
+    static func cleanUpStaleModelCaches() {
+        guard let models = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("FluidAudio/Models", isDirectory: true) else { return }
+        for name in staleModelDirNames {
+            let dir = models.appendingPathComponent(name, isDirectory: true)
+            guard FileManager.default.fileExists(atPath: dir.path) else { continue }
+            do {
+                try FileManager.default.removeItem(at: dir)
+                Log.info("Reclaimed disk from stale model cache: \(name)")
+            } catch {
+                Log.error("Could not remove stale model cache \(name): \(error.localizedDescription)")
+            }
+        }
+    }
+
     /// Load the ASR + VAD models now (in the background), so the first dictation or
     /// meeting transcription doesn't pay the cold-load cost on the critical path. This
     /// matters most right after a reboot or a macOS update, when CoreML recompiles the
