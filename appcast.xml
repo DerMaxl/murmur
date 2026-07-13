@@ -5,17 +5,18 @@
     <description>Updates for Murmur, private on-device speech-to-text for macOS.</description>
     <language>en</language>
     <item>
-      <title>Version 0.7.3</title>
+      <title>Version 0.7.4</title>
       <description><![CDATA[<ul>
-<li>New: optional speaker labels for your own side of a meeting. When two people share this Mac's microphone, turn on “Also label others sharing my microphone” (under speaker labels in Settings) and the most talkative becomes “You” while the others are labelled “Local”. Off by default; you can re-transcribe an existing meeting to apply it.</li>
-<li>Faster: switching your speech model in Settings now downloads it right away instead of stalling your first transcription later.</li>
-<li>Shortcuts now display command-first (⌘⌥E).</li>
+<li>The first-run model download now shows a real, live percentage in the HUD and a progress bar in Settings, instead of looking stuck.</li>
+<li>Reclaimed ~440 MB of disk used by an older speech model left behind by past updates.</li>
+<li>The microphone list no longer shows phantom system audio devices (e.g. ones created during a FaceTime call).</li>
+<li>Small Settings tidy-ups.</li>
 </ul>]]></description>
-      <pubDate>Sun, 12 Jul 2026 15:32:33 +0000</pubDate>
-      <sparkle:version>15</sparkle:version>
-      <sparkle:shortVersionString>0.7.3</sparkle:shortVersionString>
+      <pubDate>Mon, 13 Jul 2026 18:30:24 +0000</pubDate>
+      <sparkle:version>16</sparkle:version>
+      <sparkle:shortVersionString>0.7.4</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.7.3/Murmur.zip" sparkle:edSignature="jKZ3sLpX51r4mO8VMTAitMemRz2bKdiuPBBEnMxDYP7OaivZ+9u0dpqr0ocXYShzYl+BNgwpmrOvZqeTM5iEDw==" length="5372349" type="application/octet-stream" />
+      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.7.4/Murmur.zip" sparkle:edSignature="KDucALz71l2JAb8WvUz+nUNVdKZCO6B+21VK4SLCBuYgT24tg4a/g8irjp8jXdRSUFM0zvCKu4/UtQWMQwSgCA==" length="5385791" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
