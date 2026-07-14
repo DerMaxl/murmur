@@ -52,7 +52,7 @@ struct MainView: View {
                         // `.secondary` derives from the row's foreground, so it stays muted
                         // when unselected and legible (light) on the selected blue row.
                         Text(model.deletedRecordings.count, format: .number)
-                            .monospacedDigit()
+                            .font(.system(size: 11).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                 }
