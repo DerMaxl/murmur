@@ -27,10 +27,16 @@ final class TextInjector {
         item.setData(Data(), forType: Self.transientType)
         item.setData(Data(), forType: Self.concealedType)
         pasteboard.writeObjects([item])
+        // The changeCount right after our write. Pasting (a read) doesn't bump it, so if
+        // it has moved by restore time, something else - almost always the user copying
+        // something new - wrote to the clipboard, and we must not clobber that.
+        let ourChangeCount = pasteboard.changeCount
         postCommandV()
 
-        // Restore the user's clipboard after the paste has been delivered.
+        // Restore the user's clipboard after the paste has been delivered, unless the user
+        // copied something in the meantime (then their content wins, not the old snapshot).
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            guard pasteboard.changeCount == ourChangeCount else { return }
             self.restore(saved, to: pasteboard)
         }
     }
