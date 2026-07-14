@@ -93,6 +93,20 @@ The four core capabilities and the polish around them are done and released:
 
 ## Roadmap / ideas
 
+- **Adaptive layout for narrow / half-screen windows.** The History tab is three
+  fixed columns (sidebar 232 + list 340 + a flexible detail), so a half-screen window
+  leaves the detail pane only ~150pt: barely enough to read a transcript, and the title
+  and metadata get cramped. Hit regularly in practice (the app is often used at
+  half-screen). Mitigations already shipped, the metadata chips flow onto a second row
+  instead of squishing into ovals, and the reading column is width-capped, but those
+  don't make a half-screen window genuinely usable. The real fix is to collapse to a
+  single navigable column on narrow widths (the way Mail, or an automatic
+  NavigationSplitView, does), so a half-screen window shows one useful pane at a time.
+  The layout is a plain HStack today specifically to avoid NavigationSplitView's
+  draggable-divider bug (the sidebar could be dragged off the left of the screen), so an
+  adaptive version has to keep that property: no user-draggable or hideable divider on a
+  wide window, auto-collapse only when the window is genuinely narrow.
+
 - **Custom vocabulary**: a user-editable replacement table (wrong → right: product
   names, jargon, names the model habitually misspells) applied word-boundary,
   case-aware in `TextCleaner` after every transcription, stored as a human-editable
