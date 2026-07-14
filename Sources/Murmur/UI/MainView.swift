@@ -17,7 +17,7 @@ struct MainView: View {
         // keep their titles and toolbars (Copy / Reveal / Delete).
         HStack(spacing: 0) {
             sidebar
-                .frame(width: 215)
+                .frame(width: 232)
             Divider()
             // The window title bar shows no text (hidden in MainWindowController): SwiftUI
             // forces a large, bold title whenever a tab's content is a List (History,
@@ -40,12 +40,25 @@ struct MainView: View {
                 .tag(AppModel.Tab.history)
             Label("Import a file", systemImage: "square.and.arrow.down")
                 .tag(AppModel.Tab.importFiles)
+            // A trailing count instead of `.badge()`: the system badge rendered a hair
+            // above the row's text baseline, so this centers it against the label instead.
             Label {
-                Text("Recently Deleted")
+                HStack(spacing: 0) {
+                    // Priority so the label keeps its full width (even bold, when selected)
+                    // and never truncates to "Recently Delet…" to make room for the count.
+                    Text("Recently Deleted").layoutPriority(1)
+                    if model.deletedRecordings.count > 0 {
+                        Spacer(minLength: 8)
+                        // `.secondary` derives from the row's foreground, so it stays muted
+                        // when unselected and legible (light) on the selected blue row.
+                        Text(model.deletedRecordings.count, format: .number)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                }
             } icon: {
                 Image(systemName: "trash")
             }
-            .badge(model.deletedRecordings.count)
             .tag(AppModel.Tab.recentlyDeleted)
             Label("Settings", systemImage: "gearshape")
                 .tag(AppModel.Tab.settings)
