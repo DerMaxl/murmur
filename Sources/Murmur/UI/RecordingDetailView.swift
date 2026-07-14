@@ -105,20 +105,27 @@ struct RecordingDetailView: View {
     }
 
     private var metadata: some View {
-        HStack(spacing: 8 * scale) {
+        // Flow the chips so a narrow detail pane (a half-screen window, or a large zoom
+        // level) wraps them onto a second row instead of compressing each one until its
+        // label wraps letter-by-letter into a tall oval.
+        FlowLayout(spacing: 8 * scale) {
             chip(rec.sourceLabel, "tag")
             if let d = rec.durationText { chip(d, "clock") }
             if let app = rec.sourceApp {
                 chip(app, rec.source == .dictation ? "arrow.right.square" : "speaker.wave.2")
             }
             if rec.wordCount > 0 { chip("\(rec.wordCount) words", "text.alignleft") }
-            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func chip(_ text: String, _ symbol: String) -> some View {
         Label(text, systemImage: symbol)
             .scaledFont(11).foregroundStyle(.secondary)
+            // Stay on one line at natural width, so the flow layout wraps whole chips
+            // rather than the text inside a squeezed one.
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
             .padding(.horizontal, 8 * scale).padding(.vertical, 4 * scale)
             .background(.quaternary, in: Capsule())
     }
@@ -158,5 +165,45 @@ struct RecordingDetailView: View {
             Spacer(minLength: 0)
         }
         .padding(.bottom, 4 * scale)
+    }
+}
+
+/// A left-to-right flow layout that wraps to a new row when the next subview would
+/// overflow the proposed width (SwiftUI has no built-in one). The metadata chips use it
+/// so they wrap onto another row on a narrow pane instead of squishing; each subview is
+/// placed at its own natural size, so a chip fixed to one line stays intact.
+private struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0, widest: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > maxWidth {   // wrap to the next row
+                y += rowHeight + spacing
+                x = 0
+                rowHeight = 0
+            }
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+            widest = max(widest, x - spacing)
+        }
+        return CGSize(width: min(widest, maxWidth), height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
+        var x = bounds.minX, y = bounds.minY, rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), anchor: .topLeading, proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
     }
 }
