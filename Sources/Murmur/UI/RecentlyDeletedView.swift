@@ -47,6 +47,10 @@ struct RecentlyDeletedView: View {
                 .listStyle(.inset)
             }
         }
+        // Cap the content width and center it, so rows don't stretch edge-to-edge on a
+        // wide or full-screen window (title far left, buttons far right, a void between).
+        .frame(maxWidth: 760)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .confirmationDialog("Permanently delete everything in Recently Deleted?",
                             isPresented: $confirmingEmpty, titleVisibility: .visible) {
             Button("Delete All Permanently", role: .destructive) { model.emptyTrash() }
