@@ -38,7 +38,15 @@ final class MainWindowController: NSObject, NSWindowDelegate {
             // internal title for the Window menu / Mission Control.)
             win.title = "Murmur"
             win.titleVisibility = .hidden
-            win.titlebarAppearsTransparent = false
+            // A transparent title bar with no separator, so the sidebar material and the
+            // column dividers run to the very top the way a native sidebar app (Finder,
+            // Mail, Notes) looks, instead of hanging below an opaque title-bar band. In a
+            // normal (non-full-screen) window that band and its separator hairline read as
+            // stray lines across the top; full-screen hid them, which is why it only looked
+            // off when windowed. .fullSizeContentView (below) still lets SwiftUI inset the
+            // actual controls below the traffic lights; only the backgrounds reach up.
+            win.titlebarAppearsTransparent = true
+            win.titlebarSeparatorStyle = .none
             win.isReleasedWhenClosed = false
             win.delegate = self
             win.setContentSize(NSSize(width: 1000, height: 620))
