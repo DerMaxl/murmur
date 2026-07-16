@@ -66,10 +66,12 @@ enum MainMenu {
         let zoomOut = m.addItem(withTitle: "Zoom Out", action: #selector(AppDelegate.zoomOut), keyEquivalent: "-")
         let actual = m.addItem(withTitle: "Actual Size", action: #selector(AppDelegate.zoomActual), keyEquivalent: "0")
         m.addItem(.separator())
-        // ⌃⌘S, the standard macOS Show/Hide Sidebar shortcut. The sidebar hides itself on
-        // a narrow (half-screen) window to give the transcript room, so this is the way
-        // back to the other sections there. The title flips in validateMenuItem.
-        let sidebar = m.addItem(withTitle: "Hide Sidebar",
+        // ⌃⌘S, the standard macOS sidebar shortcut. The sidebar hides itself on a narrow
+        // (half-screen) window to give the transcript room, so this is the way back to the
+        // other sections there. A fixed title, not a Show/Hide that flips with the state:
+        // retitling the item from validateMenuItem (which runs while the menu is being
+        // laid out) made the whole View menu open at the far right of the screen.
+        let sidebar = m.addItem(withTitle: "Toggle Sidebar",
                                 action: #selector(AppDelegate.toggleSidebar), keyEquivalent: "s")
         sidebar.keyEquivalentModifierMask = [.control, .command]
         for item in [zoomIn, zoomOut, actual, sidebar] { item.target = target }
