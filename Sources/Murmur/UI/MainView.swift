@@ -54,7 +54,12 @@ struct MainView: View {
             wasNarrow = narrow
             model.sidebarVisibility = narrow ? .detailOnly : .all
         }
-        .frame(minWidth: 840, minHeight: 520)
+        // The minimum has to stay under half a Mac screen, or the window can't actually
+        // tile to half: macOS clamps the tile up to the minimum instead (at 840 on a
+        // 1470pt screen it came out 840 against a 735pt half, i.e. 1.14x half, which reads
+        // as "a bit more than half"). Now that the sidebar hides itself below 1000pt, the
+        // floor only has to fit the recordings list (340) plus a readable detail.
+        .frame(minWidth: 700, minHeight: 520)
         .tint(Brand.accent)
         .environment(\.fontScale, model.fontScale)
     }
