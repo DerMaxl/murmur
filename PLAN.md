@@ -23,8 +23,9 @@ The four core capabilities and the polish around them are done and released:
   30-day Recently Deleted, plus auto-delete retention.
 - **Adaptive layout**: the app is often run at half-screen, where three columns (a 232pt
   labelled sidebar + list 340 + detail) squeezed the transcript to ~270pt. The section
-  sidebar is now an icon-only rail (~56pt, names in tooltips) that even a half-screen
-  window can spare, so the sections stay reachable at every size. View > Toggle Sidebar
+  sidebar is now an icon-only rail (~50pt, names in tooltips) that even a half-screen
+  window can spare, so the sections stay reachable at every size, with the selected row
+  brand-tinted rather than the system accent blue. View > Toggle Sidebar
   (⌃⌘S) expands it to labels (where the Recently Deleted count shows), and the window
   width overrides that: labels appear only above ~1000pt, so narrowing collapses back to
   the rail instead of pushing the transcript out of view, and the preference reapplies by

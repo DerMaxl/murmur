@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The window's root: a fixed sidebar that switches between History, Import, Recently
+/// The window's root: an icon-rail sidebar that switches between History, Import, Recently
 /// Deleted, and Settings. Kept deliberately small - the app is driven mostly by the
 /// global hotkey; this window is for browsing past recordings and changing settings
 /// without hunting through the menu bar.
@@ -12,12 +12,12 @@ struct MainView: View {
     @State private var hoveredTab: AppModel.Tab?
 
     /// Sidebar widths: a narrow icon-only rail by default, or wide enough for the labels
-    /// when expanded (⌃⌘S). Both are single fixed values, see the column note below.
+    /// when expanded (⌃⌘S).
     private static let railWidth: CGFloat = 50
     private static let expandedWidth: CGFloat = 172
 
     /// Under this window width the sidebar stays a rail whatever the preference says:
-    /// labels (232) plus the recordings list (340) only leave the transcript a readable
+    /// labels (172) plus the recordings list (340) only leave the transcript a readable
     /// ~420pt from about here up.
     private static let labelsBreakpoint: CGFloat = 1000
 
@@ -34,9 +34,9 @@ struct MainView: View {
         // no divider to drag off screen) and the label toggle is our own state rather than
         // its column collapsing. The gap between the panels replaces the divider outright.
         //
-        // The sidebar defaults to an icon-only rail. At ~56pt instead of 232 even a
-        // half-screen window can spare it, so the sections stay reachable at every size
-        // rather than the sidebar having to hide itself (and stranding you in one pane).
+        // The sidebar defaults to an icon-only rail. At ~50pt even a half-screen window
+        // can spare it, so the sections stay reachable at every size rather than the
+        // sidebar having to hide itself (and stranding you in one pane).
         //
         // The window title bar shows no text (hidden in MainWindowController): SwiftUI
         // forces a large, bold title whenever a tab's content is a List (History,
@@ -63,7 +63,7 @@ struct MainView: View {
         // is the same colour and the whole thing looks like one page.
         .background(Color(nsColor: .underPageBackgroundColor))
         // Track whether there's room for labels. Resizing down to half the screen has to
-        // drop the sidebar back to the rail on its own, or the labels keep their 232pt and
+        // drop the sidebar back to the rail on its own, or the labels keep their 172pt and
         // it comes out of the transcript, which just slides out of view.
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
             let narrow = width < Self.labelsBreakpoint

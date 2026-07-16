@@ -31,8 +31,8 @@ final class MainWindowController: NSObject, NSWindowDelegate {
             let win = NSWindow(contentViewController: hosting)
             // Deliberately *without* .fullSizeContentView: the content stops below the
             // title bar instead of running under it. With a full-size content view the
-            // sidebar painted up behind the traffic lights, which a 232pt sidebar got away
-            // with but a ~56pt rail does not (the lights are wider than the rail, so they
+            // sidebar painted up behind the traffic lights, which a wide labelled sidebar
+            // got away with but a ~50pt rail does not (the lights are wider than the rail, so they
             // spilled over its edge), and in full screen the first row hid under the
             // title-bar strip entirely, leaving History unreachable. Keeping the content
             // below the bar gives the Spotify-style layout instead: one uniform bar across

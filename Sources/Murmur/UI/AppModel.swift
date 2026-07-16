@@ -40,7 +40,7 @@ final class AppModel {
     var sidebarIsNarrow = false
 
     /// The sidebar shows labels only when asked for *and* there's room. The labelled
-    /// sidebar costs 232pt against the rail's ~56; on a half-screen window that difference
+    /// sidebar costs 172pt against the rail's ~50; on a half-screen window that difference
     /// comes straight out of the transcript, squeezing it to nothing. So the width wins,
     /// and the preference reapplies by itself once the window grows again.
     var sidebarShowsLabels: Bool { sidebarExpanded && !sidebarIsNarrow }
