@@ -129,6 +129,12 @@ The four core capabilities and the polish around them are done and released:
 - **Terminal typing fallback**: CGEvent Unicode typing for apps where paste is unreliable.
 - **Smarter titles/summaries**: optional LLM-generated titles/tags; backfill summaries
   for old recordings.
+- **Sidebar labels when the window is narrow (watch item)**: below ~1000pt the Toggle
+  Sidebar (⌃⌘S) label expansion is disabled and the app plays the system beep, because
+  labels there would push the transcript out of view (see Adaptive layout under Shipped).
+  This is deliberate, but a disabled toggle that just beeps may read as "broken" to
+  someone who doesn't know why. Not urgent — noting it in case it turns out to feel weird
+  to users, in which case revisit.
 
 ## Model-swap candidates (behind `TranscriptionEngine`)
 
