@@ -161,6 +161,9 @@ struct HistoryView: View {
             }
         }
         .listStyle(.inset)
+        // Drop the list's own (cool-toned) backdrop so it shows the panel surface, matching
+        // the filter bar above it, the detail pane, and the Import/Settings panes.
+        .scrollContentBackground(.hidden)
         // Open on the most recent recording rather than an empty detail pane (which
         // looks especially bare on a large or maximized window). Only when nothing is
         // already selected, so it never fights a selection the user made.
