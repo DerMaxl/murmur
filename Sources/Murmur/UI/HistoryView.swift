@@ -263,10 +263,11 @@ private struct RecordingRow: View {
                 Text(rec.displayName).scaledFont(13).lineLimit(1)
                 Text(rec.previewLine)
                     .scaledFont(12).foregroundStyle(.secondary).lineLimit(2)
+                // No source-type word here ("Dictation" / "Meeting" / "Import"): the
+                // leading icon already conveys it, and dropping it keeps this footer to
+                // one line in the narrow list instead of wrapping it letter by letter.
                 HStack(spacing: 6 * scale) {
                     Text(rec.startedAt, format: .dateTime.hour().minute())
-                    metaDot
-                    Text(rec.sourceLabel)
                     if let d = rec.durationText { metaDot; Text(d) }
                     if let app = rec.sourceApp {
                         metaDot
@@ -278,6 +279,7 @@ private struct RecordingRow: View {
                     if rec.wordCount > 0 { metaDot; Text("\(rec.wordCount) words") }
                 }
                 .scaledFont(11).foregroundStyle(.tertiary)
+                .lineLimit(1)
                 .padding(.top, 1)
             }
             Spacer(minLength: 0)
