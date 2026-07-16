@@ -28,13 +28,18 @@ The four core capabilities and the polish around them are done and released:
   (⌃⌘S) expands it to labels (where the Recently Deleted count shows), and the window
   width overrides that: labels appear only above ~1000pt, so narrowing collapses back to
   the rail instead of pushing the transcript out of view, and the preference reapplies by
-  itself once there's room. Built on a NavigationSplitView whose sidebar column is pinned
-  to a *single* fixed width, which is what keeps the divider undraggable: a min/ideal/max
-  range stays resizable, and that is what once let the sidebar be dragged off the left of
-  the screen. The window minimum (700) stays under half a Mac screen, or macOS clamps a
-  half-screen tile up to the minimum and the window comes out wider than half. The
-  detail's metadata chips flow onto another row rather than compressing, and the reading
-  column is width-capped.
+  itself once there's room. The rail and the content are rounded panels floating on a
+  slightly darker page, with a gap between them instead of a divider (a Spotify-style
+  look). That rules out NavigationSplitView, which butts its columns together with a
+  divider and paints their materials itself; a plain HStack of fixed-width panels has
+  nothing to drag anyway, which was the only reason to want the split view back. The
+  window is deliberately *not* `.fullSizeContentView`: with the content stopping below the
+  title bar, the bar is one flat strip holding the traffic lights (which are wider than
+  the rail, so they used to spill over its edge, and in full screen the first row hid
+  under them entirely and left History unreachable). The window minimum (700) stays under
+  half a Mac screen, or macOS clamps a half-screen tile up to the minimum and the window
+  comes out wider than half. The detail's metadata chips flow onto another row rather than
+  compressing, and the reading column is width-capped.
 - **Quality of life**: mute background audio while dictating (leaves browser/call apps
   alone), auto-copy to clipboard, sound effects, menu-bar/Dock visibility modes, launch
   at login, window zoom, brand palette + icon.
