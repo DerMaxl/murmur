@@ -21,6 +21,15 @@ The four core capabilities and the polish around them are done and released:
   Foundation Models, macOS 26).
 - **History window**: searchable, day-grouped, read-only detail; soft delete with a
   30-day Recently Deleted, plus auto-delete retention.
+- **Adaptive layout**: the app is often run at half-screen, where three fixed columns
+  (sidebar 232 + list 340 + detail) squeezed the transcript to ~270pt. The section
+  sidebar now hides itself below 1000pt of window and returns above it, leaving the
+  transcript ~500pt; only crossing that width moves it, so View > Show/Hide Sidebar
+  (⌃⌘S) sticks as a manual override. Built on a NavigationSplitView whose sidebar column
+  is pinned to a *single* fixed width, which is what keeps the divider undraggable: a
+  min/ideal/max range stays resizable, and that is what once let the sidebar be dragged
+  off the left of the screen. The detail's metadata chips flow onto another row rather
+  than compressing, and the reading column is width-capped.
 - **Quality of life**: mute background audio while dictating (leaves browser/call apps
   alone), auto-copy to clipboard, sound effects, menu-bar/Dock visibility modes, launch
   at login, window zoom, brand palette + icon.
@@ -92,20 +101,6 @@ The four core capabilities and the polish around them are done and released:
   then have an affected user reproduce so the numbers say which it is before fixing.
 
 ## Roadmap / ideas
-
-- **Adaptive layout for narrow / half-screen windows.** The History tab is three
-  fixed columns (sidebar 232 + list 340 + a flexible detail), so a half-screen window
-  leaves the detail pane only ~150pt: barely enough to read a transcript, and the title
-  and metadata get cramped. Hit regularly in practice (the app is often used at
-  half-screen). Mitigations already shipped, the metadata chips flow onto a second row
-  instead of squishing into ovals, and the reading column is width-capped, but those
-  don't make a half-screen window genuinely usable. The real fix is to collapse to a
-  single navigable column on narrow widths (the way Mail, or an automatic
-  NavigationSplitView, does), so a half-screen window shows one useful pane at a time.
-  The layout is a plain HStack today specifically to avoid NavigationSplitView's
-  draggable-divider bug (the sidebar could be dragged off the left of the screen), so an
-  adaptive version has to keep that property: no user-draggable or hideable divider on a
-  wide window, auto-collapse only when the window is genuinely narrow.
 
 - **Custom vocabulary**: a user-editable replacement table (wrong → right: product
   names, jargon, names the model habitually misspells) applied word-boundary,
