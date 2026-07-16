@@ -5,20 +5,15 @@
     <description>Updates for Murmur, private on-device speech-to-text for macOS.</description>
     <language>en</language>
     <item>
-      <title>Version 0.7.5</title>
-      <description><![CDATA[<p>A visual refresh of the main window, plus a couple of robustness fixes.</p>
-<ul>
-<li>A cleaner look: a compact icon sidebar that expands to labels, content in floating panels, and a seamless top bar with no divider seams.</li>
-<li>Half-screen friendly: the sidebar collapses to icons so the transcript keeps its room, and the window now tiles to exactly half the screen.</li>
-<li>Recording details no longer wrap into unreadable stacks on a narrow window.</li>
-<li>Dictation no longer overwrites something you copied while it pastes.</li>
-<li>Consistent brand-coloured selection and backgrounds throughout.</li>
+      <title>Version 0.7.6</title>
+      <description><![CDATA[<ul>
+<li>Recently Deleted now shows a header with the item count and a divider above the list, so the Empty button reads as part of a header instead of floating on its own.</li>
 </ul>]]></description>
-      <pubDate>Thu, 16 Jul 2026 08:42:16 +0000</pubDate>
-      <sparkle:version>17</sparkle:version>
-      <sparkle:shortVersionString>0.7.5</sparkle:shortVersionString>
+      <pubDate>Thu, 16 Jul 2026 10:53:36 +0000</pubDate>
+      <sparkle:version>18</sparkle:version>
+      <sparkle:shortVersionString>0.7.6</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.7.5/Murmur.zip" sparkle:edSignature="r8y8XDsBCGzWnFK4DKDLezDpGj3piIIHhJIvW+vXFnnYvLAva5XPs0eZR7umNj4oO5xhGlNDTv4QpmMTCGHzBg==" length="5407337" type="application/octet-stream" />
+      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.7.6/Murmur.zip" sparkle:edSignature="8XHpYs5xJPG4jBKDUgGJePO7lyfjzfT4kPyYzcYPabVaOaTxfcbf5ZOLh3BAnmUt+caVsHPMp46Yg7019hrrCA==" length="5408638" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
