@@ -29,7 +29,15 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         if window == nil {
             let hosting = NSHostingController(rootView: MainView(model: model))
             let win = NSWindow(contentViewController: hosting)
-            win.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+            // Deliberately *without* .fullSizeContentView: the content stops below the
+            // title bar instead of running under it. With a full-size content view the
+            // sidebar painted up behind the traffic lights, which a 232pt sidebar got away
+            // with but a ~56pt rail does not (the lights are wider than the rail, so they
+            // spilled over its edge), and in full screen the first row hid under the
+            // title-bar strip entirely, leaving History unreachable. Keeping the content
+            // below the bar gives the Spotify-style layout instead: one uniform bar across
+            // the top holding the traffic lights, with the sidebar its own panel underneath.
+            win.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             win.tabbingMode = .disallowed   // no window tabs (removes "Show Tab Bar" etc.)
             // Hide the title-bar text. SwiftUI renders a tab's title large/bold when its
             // content is a List but inline for the others, and won't reliably unify them,
@@ -38,13 +46,9 @@ final class MainWindowController: NSObject, NSWindowDelegate {
             // internal title for the Window menu / Mission Control.)
             win.title = "Murmur"
             win.titleVisibility = .hidden
-            // A transparent title bar with no separator, so the sidebar material and the
-            // column dividers run to the very top the way a native sidebar app (Finder,
-            // Mail, Notes) looks, instead of hanging below an opaque title-bar band. In a
-            // normal (non-full-screen) window that band and its separator hairline read as
-            // stray lines across the top; full-screen hid them, which is why it only looked
-            // off when windowed. .fullSizeContentView (below) still lets SwiftUI inset the
-            // actual controls below the traffic lights; only the backgrounds reach up.
+            // A transparent title bar with no separator: the bar draws the window's own
+            // background rather than its own shade, so it reads as one flat strip across
+            // the top rather than a distinct band with a hairline under it.
             win.titlebarAppearsTransparent = true
             win.titlebarSeparatorStyle = .none
             win.isReleasedWhenClosed = false
