@@ -7,27 +7,52 @@ import SwiftUI
 struct MainView: View {
     @Bindable var model: AppModel
 
+    /// Below this window width the sidebar is hidden. Sized so the transcript pane keeps
+    /// roughly 420pt: with the sidebar (232) and the recordings list (340) both showing,
+    /// the detail only clears that at about 1000pt of window.
+    private static let sidebarBreakpoint: CGFloat = 1000
+
+    /// Whether the window was last seen narrower than the breakpoint. Only *crossing* it
+    /// moves the sidebar, so a manual Show/Hide (⌃⌘S) sticks instead of being reverted by
+    /// the next stray resize, including the one that showing the sidebar itself causes.
+    @State private var wasNarrow: Bool?
+
     var body: some View {
-        // A fixed sidebar beside the detail, as a plain HStack rather than a
-        // NavigationSplitView. The split view kept the divider draggable (its column-width
-        // limits weren't enforced against a drag, so the sidebar could be widened until the
-        // window grew off the left of the screen) and collapsible. A four-item nav list
-        // needs neither: a fixed-width column can't be dragged or hidden, so the sidebar
-        // always stays put and visible. The detail sits in a NavigationStack so its views
-        // keep their titles and toolbars (Copy / Reveal / Delete).
-        HStack(spacing: 0) {
+        // A NavigationSplitView whose sidebar column is pinned with a *single* fixed
+        // width. The earlier hand-rolled HStack existed because the split view's divider
+        // stayed draggable, so the sidebar could be widened until the window ran off the
+        // left of the screen; that was with a min/ideal/max range, which SwiftUI treats as
+        // resizable. A lone `navigationSplitViewColumnWidth(232)` makes the column fixed,
+        // so there's nothing to drag. In exchange we get the native sidebar collapse, which
+        // lets a narrow (half-screen) window reclaim the sidebar's 232pt for the content.
+        //
+        // The window title bar shows no text (hidden in MainWindowController): SwiftUI
+        // forces a large, bold title whenever a tab's content is a List (History,
+        // Recently Deleted) but an inline one for the Form/VStack tabs, and won't
+        // reliably let us unify them. The sidebar already shows the selected section,
+        // so hiding the redundant title makes every tab's title bar identical.
+        // The sidebar costs 232pt, which a half-screen window can't spare (it leaves the
+        // transcript pane around 270pt, too narrow to read), so it hides itself when the
+        // window is narrow and comes back when there's room. View > Show/Hide Sidebar
+        // (⌃⌘S) overrides it, which is the way back to the other sections while narrow.
+        NavigationSplitView(columnVisibility: $model.sidebarVisibility) {
             sidebar
-                .frame(width: 232)
-            Divider()
-            // The window title bar shows no text (hidden in MainWindowController): SwiftUI
-            // forces a large, bold title whenever a tab's content is a List (History,
-            // Recently Deleted) but an inline one for the Form/VStack tabs, and won't
-            // reliably let us unify them. The sidebar already shows the selected section,
-            // so hiding the redundant title makes every tab's title bar identical.
+                .navigationSplitViewColumnWidth(232)
+        } detail: {
             NavigationStack {
                 detail
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        }
+        .navigationSplitViewStyle(.balanced)
+        // Hide the sidebar on a narrow (half-screen) window and bring it back when the
+        // window grows. Reads the split view's own width, which is the window's content
+        // width and doesn't change when the sidebar collapses, so this can't oscillate.
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+            let narrow = width < Self.sidebarBreakpoint
+            guard narrow != wasNarrow else { return }   // only act on a crossing
+            wasNarrow = narrow
+            model.sidebarVisibility = narrow ? .detailOnly : .all
         }
         .frame(minWidth: 840, minHeight: 520)
         .tint(Brand.accent)

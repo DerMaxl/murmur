@@ -367,6 +367,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func zoomOut() { model.zoomOut() }
     @objc func zoomActual() { model.resetZoom() }
 
+    /// View > Show/Hide Sidebar (⌃⌘S), the standard macOS shortcut. The sidebar hides
+    /// itself on a narrow window, so this is how you reach the other sections there.
+    @objc func toggleSidebar() { model.toggleSidebar() }
+    /// Keeps the menu item's title in step with the sidebar's current state.
+    @objc func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if item.action == #selector(toggleSidebar) {
+            item.title = model.sidebarVisible ? "Hide Sidebar" : "Show Sidebar"
+        }
+        return true
+    }
+
     @objc private func openFolder() {
         coordinator.openRecordingsFolder()
     }

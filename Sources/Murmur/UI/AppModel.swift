@@ -30,6 +30,18 @@ final class AppModel {
 
     enum Tab: Hashable { case history, importFiles, recentlyDeleted, settings }
 
+    /// Whether the section sidebar is showing. Lives here rather than as `MainView`
+    /// state so the View menu's Show/Hide Sidebar item can reach it: the sidebar hides
+    /// itself on a narrow window (see `MainView`), and hiding the only section nav with
+    /// no way back would strand you in whichever pane you were on.
+    var sidebarVisibility: NavigationSplitViewVisibility = .all
+
+    var sidebarVisible: Bool { sidebarVisibility != .detailOnly }
+
+    func toggleSidebar() {
+        sidebarVisibility = sidebarVisible ? .detailOnly : .all
+    }
+
     /// Window content zoom (⌘= / ⌘- / ⌘0). A plain multiplier on our font sizes -
     /// macOS ignores `dynamicTypeSize` for this kind of content, so we scale fonts
     /// ourselves (see `FontScale`/`scaledFont`). 1.0 = normal.

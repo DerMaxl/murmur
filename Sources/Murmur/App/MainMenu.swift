@@ -65,7 +65,14 @@ enum MainMenu {
         let zoomIn = m.addItem(withTitle: "Zoom In", action: #selector(AppDelegate.zoomIn), keyEquivalent: "=")
         let zoomOut = m.addItem(withTitle: "Zoom Out", action: #selector(AppDelegate.zoomOut), keyEquivalent: "-")
         let actual = m.addItem(withTitle: "Actual Size", action: #selector(AppDelegate.zoomActual), keyEquivalent: "0")
-        for item in [zoomIn, zoomOut, actual] { item.target = target }
+        m.addItem(.separator())
+        // ⌃⌘S, the standard macOS Show/Hide Sidebar shortcut. The sidebar hides itself on
+        // a narrow (half-screen) window to give the transcript room, so this is the way
+        // back to the other sections there. The title flips in validateMenuItem.
+        let sidebar = m.addItem(withTitle: "Hide Sidebar",
+                                action: #selector(AppDelegate.toggleSidebar), keyEquivalent: "s")
+        sidebar.keyEquivalentModifierMask = [.control, .command]
+        for item in [zoomIn, zoomOut, actual, sidebar] { item.target = target }
         return m
     }
 }
