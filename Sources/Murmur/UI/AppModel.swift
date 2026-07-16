@@ -30,17 +30,14 @@ final class AppModel {
 
     enum Tab: Hashable { case history, importFiles, recentlyDeleted, settings }
 
-    /// Whether the section sidebar is showing. Lives here rather than as `MainView`
-    /// state so the View menu's Show/Hide Sidebar item can reach it: the sidebar hides
-    /// itself on a narrow window (see `MainView`), and hiding the only section nav with
-    /// no way back would strand you in whichever pane you were on.
-    var sidebarVisibility: NavigationSplitViewVisibility = .all
+    /// Whether the section sidebar shows labels beside its icons, or collapses to a
+    /// narrow icon-only rail (the default). The rail costs ~56pt instead of 232, which a
+    /// half-screen window can actually spare, so the sections stay reachable at every
+    /// window size rather than having to hide. Lives here rather than as `MainView` state
+    /// so the View menu's Toggle Sidebar item can reach it.
+    var sidebarExpanded = false
 
-    var sidebarVisible: Bool { sidebarVisibility != .detailOnly }
-
-    func toggleSidebar() {
-        sidebarVisibility = sidebarVisible ? .detailOnly : .all
-    }
+    func toggleSidebar() { sidebarExpanded.toggle() }
 
     /// Window content zoom (⌘= / ⌘- / ⌘0). A plain multiplier on our font sizes -
     /// macOS ignores `dynamicTypeSize` for this kind of content, so we scale fonts
