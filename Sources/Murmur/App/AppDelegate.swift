@@ -367,9 +367,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func zoomOut() { model.zoomOut() }
     @objc func zoomActual() { model.resetZoom() }
 
-    /// View > Toggle Sidebar (⌃⌘S), the standard macOS shortcut. The sidebar hides
-    /// itself on a narrow window, so this is how you reach the other sections there.
+    /// View > Toggle Sidebar (⌃⌘S): expand the icon rail to labels, or collapse back. The
+    /// rail is always visible either way, so this only affects the labels.
     @objc func toggleSidebar() { model.toggleSidebar() }
+
+    /// Grey out Toggle Sidebar when the window is too narrow for labels, so it reads as
+    /// unavailable instead of silently doing nothing (labels are suppressed at that size).
+    /// Only the enabled state is touched here, never the title: retitling from
+    /// validateMenuItem is what once shoved the whole View menu to the screen edge.
+    @objc func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if item.action == #selector(toggleSidebar) { return !model.sidebarIsNarrow }
+        return true
+    }
 
     @objc private func openFolder() {
         coordinator.openRecordingsFolder()

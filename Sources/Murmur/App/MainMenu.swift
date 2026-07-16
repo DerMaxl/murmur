@@ -66,11 +66,13 @@ enum MainMenu {
         let zoomOut = m.addItem(withTitle: "Zoom Out", action: #selector(AppDelegate.zoomOut), keyEquivalent: "-")
         let actual = m.addItem(withTitle: "Actual Size", action: #selector(AppDelegate.zoomActual), keyEquivalent: "0")
         m.addItem(.separator())
-        // ⌃⌘S, the standard macOS sidebar shortcut. The sidebar hides itself on a narrow
-        // (half-screen) window to give the transcript room, so this is the way back to the
-        // other sections there. A fixed title, not a Show/Hide that flips with the state:
+        // ⌃⌘S, the standard macOS sidebar shortcut. Expands the icon rail to labels (and
+        // back); the rail itself is always visible, so this only changes labels, never
+        // reachability. Disabled on a window too narrow for labels (see AppDelegate's
+        // validateMenuItem). A fixed title, not a Show/Hide that flips with the state:
         // retitling the item from validateMenuItem (which runs while the menu is being
-        // laid out) made the whole View menu open at the far right of the screen.
+        // laid out) made the whole View menu open at the far right of the screen; toggling
+        // only the item's *enabled* state there is safe (it doesn't reflow the menu).
         let sidebar = m.addItem(withTitle: "Toggle Sidebar",
                                 action: #selector(AppDelegate.toggleSidebar), keyEquivalent: "s")
         sidebar.keyEquivalentModifierMask = [.control, .command]
