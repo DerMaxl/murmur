@@ -13,8 +13,8 @@ struct MainView: View {
 
     /// Sidebar widths: a narrow icon-only rail by default, or wide enough for the labels
     /// when expanded (⌃⌘S). Both are single fixed values, see the column note below.
-    private static let railWidth: CGFloat = 56
-    private static let expandedWidth: CGFloat = 184
+    private static let railWidth: CGFloat = 50
+    private static let expandedWidth: CGFloat = 172
 
     /// Under this window width the sidebar stays a rail whatever the preference says:
     /// labels (232) plus the recordings list (340) only leave the transcript a readable
@@ -102,6 +102,10 @@ struct MainView: View {
         }
         .padding(8)
         .frame(maxHeight: .infinity, alignment: .top)
+        // No focus ring: the buttons stay keyboard-reachable, but the blue system focus
+        // outline (separate from the purple selection fill, and prone to lingering on a
+        // previously-focused row) read as a second, competing "selected" marker.
+        .focusEffectDisabled()
     }
 
     /// One section row: icon only on the rail, icon + label (+ the Deleted count) once
