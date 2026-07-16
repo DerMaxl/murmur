@@ -30,12 +30,20 @@ final class AppModel {
 
     enum Tab: Hashable { case history, importFiles, recentlyDeleted, settings }
 
-    /// Whether the section sidebar shows labels beside its icons, or collapses to a
-    /// narrow icon-only rail (the default). The rail costs ~56pt instead of 232, which a
-    /// half-screen window can actually spare, so the sections stay reachable at every
-    /// window size rather than having to hide. Lives here rather than as `MainView` state
-    /// so the View menu's Toggle Sidebar item can reach it.
+    /// Whether the user asked for labels beside the sidebar icons (⌃⌘S). A *preference*,
+    /// not the answer: a narrow window overrides it (see `sidebarShowsLabels`). Lives here
+    /// rather than as `MainView` state so the View menu's Toggle Sidebar item can reach it.
     var sidebarExpanded = false
+
+    /// Whether the window is too narrow to afford the labelled sidebar. Set from the
+    /// window width in `MainView`.
+    var sidebarIsNarrow = false
+
+    /// The sidebar shows labels only when asked for *and* there's room. The labelled
+    /// sidebar costs 232pt against the rail's ~56; on a half-screen window that difference
+    /// comes straight out of the transcript, squeezing it to nothing. So the width wins,
+    /// and the preference reapplies by itself once the window grows again.
+    var sidebarShowsLabels: Bool { sidebarExpanded && !sidebarIsNarrow }
 
     func toggleSidebar() { sidebarExpanded.toggle() }
 

@@ -12,6 +12,11 @@ struct MainView: View {
     private static let railWidth: CGFloat = 56
     private static let expandedWidth: CGFloat = 232
 
+    /// Under this window width the sidebar stays a rail whatever the preference says:
+    /// labels (232) plus the recordings list (340) only leave the transcript a readable
+    /// ~420pt from about here up.
+    private static let labelsBreakpoint: CGFloat = 1000
+
     var body: some View {
         // A NavigationSplitView whose sidebar column is pinned with a *single* fixed
         // width. The earlier hand-rolled HStack existed because the split view's divider
@@ -32,7 +37,7 @@ struct MainView: View {
         NavigationSplitView {
             sidebar
                 .navigationSplitViewColumnWidth(
-                    model.sidebarExpanded ? Self.expandedWidth : Self.railWidth)
+                    model.sidebarShowsLabels ? Self.expandedWidth : Self.railWidth)
         } detail: {
             NavigationStack {
                 detail
@@ -40,6 +45,13 @@ struct MainView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
+        // Track whether there's room for labels. Resizing down to half the screen has to
+        // drop the sidebar back to the rail on its own, or the labels keep their 232pt and
+        // it comes out of the transcript, which just slides out of view.
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+            let narrow = width < Self.labelsBreakpoint
+            if model.sidebarIsNarrow != narrow { model.sidebarIsNarrow = narrow }
+        }
         // The minimum has to stay under half a Mac screen, or the window can't actually
         // tile to half: macOS clamps the tile up to the minimum instead (at 840 on a
         // 1470pt screen it came out 840 against a 735pt half, i.e. 1.14x half, which reads
@@ -66,7 +78,7 @@ struct MainView: View {
     @ViewBuilder
     private func item(_ tab: AppModel.Tab, _ title: String,
                       _ symbol: String, count: Int = 0) -> some View {
-        if model.sidebarExpanded {
+        if model.sidebarShowsLabels {
             Label {
                 HStack(spacing: 0) {
                     // Priority so the label keeps its full width (even bold, when selected)
