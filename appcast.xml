@@ -5,15 +5,15 @@
     <description>Updates for Murmur, private on-device speech-to-text for macOS.</description>
     <language>en</language>
     <item>
-      <title>Version 0.7.6</title>
+      <title>Version 0.7.7</title>
       <description><![CDATA[<ul>
-<li>Recently Deleted now shows a header with the item count and a divider above the list, so the Empty button reads as part of a header instead of floating on its own.</li>
+<li>The Dock icon now fits the standard macOS icon size, so it lines up with your other apps instead of looking a little oversized.</li>
 </ul>]]></description>
-      <pubDate>Thu, 16 Jul 2026 10:53:36 +0000</pubDate>
-      <sparkle:version>18</sparkle:version>
-      <sparkle:shortVersionString>0.7.6</sparkle:shortVersionString>
+      <pubDate>Thu, 16 Jul 2026 14:49:19 +0000</pubDate>
+      <sparkle:version>19</sparkle:version>
+      <sparkle:shortVersionString>0.7.7</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.7.6/Murmur.zip" sparkle:edSignature="8XHpYs5xJPG4jBKDUgGJePO7lyfjzfT4kPyYzcYPabVaOaTxfcbf5ZOLh3BAnmUt+caVsHPMp46Yg7019hrrCA==" length="5408638" type="application/octet-stream" />
+      <enclosure url="https://github.com/DerMaxl/murmur/releases/download/v0.7.7/Murmur.zip" sparkle:edSignature="IjOXa2lChtTrXdefhFUoce13oDW4ecaaKZLlmv1DlG9atrOO5K/yNkxZO02gtZTzYX23WAtns1h7b8TKomStDw==" length="4858903" type="application/octet-stream" />
     </item>
   </channel>
 </rss>
