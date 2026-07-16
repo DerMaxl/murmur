@@ -29,15 +29,15 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         if window == nil {
             let hosting = NSHostingController(rootView: MainView(model: model))
             let win = NSWindow(contentViewController: hosting)
-            // Deliberately *without* .fullSizeContentView: the content stops below the
-            // title bar instead of running under it. With a full-size content view the
-            // sidebar painted up behind the traffic lights, which a wide labelled sidebar
-            // got away with but a ~50pt rail does not (the lights are wider than the rail, so they
-            // spilled over its edge), and in full screen the first row hid under the
-            // title-bar strip entirely, leaving History unreachable. Keeping the content
-            // below the bar gives the Spotify-style layout instead: one uniform bar across
-            // the top holding the traffic lights, with the sidebar its own panel underneath.
-            win.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+            // .fullSizeContentView so the content view - and its page background - runs all
+            // the way up behind the title bar, so the strip behind the traffic lights is the
+            // exact same colour as the rest of the app instead of the (slightly lighter)
+            // title-bar material. MainView keeps the floating panels inset below the title
+            // bar (it pads the top by the safe-area inset the bar creates), so only the page
+            // background sits behind the lights - never a panel. That's the difference from
+            // an earlier full-size attempt, where the sidebar painted up under the ~50pt-wide
+            // lights and, in full screen, its first row hid under the bar entirely.
+            win.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
             win.tabbingMode = .disallowed   // no window tabs (removes "Show Tab Bar" etc.)
             // Hide the title-bar text. SwiftUI renders a tab's title large/bold when its
             // content is a List but inline for the others, and won't reliably unify them,

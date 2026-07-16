@@ -58,10 +58,12 @@ struct MainView: View {
         }
         .padding(Self.panelGap)
         // The page the panels sit on. Deliberately darker than the panels themselves, so
-        // they read as floating rather than as regions of one flat surface. The window's
-        // background is set to match (MainWindowController), so the title-bar strip above
-        // is the same colour and the whole thing looks like one page.
-        .background(Color(nsColor: .underPageBackgroundColor))
+        // they read as floating rather than as regions of one flat surface. It ignores the
+        // safe area so it paints behind the title bar too (the window is
+        // .fullSizeContentView), which makes the strip behind the traffic lights the same
+        // colour as the page - no separate title-bar band. The panels above stay within the
+        // safe area, so they don't slide under the traffic lights.
+        .background { Color(nsColor: .underPageBackgroundColor).ignoresSafeArea() }
         // Track whether there's room for labels. Resizing down to half the screen has to
         // drop the sidebar back to the rail on its own, or the labels keep their 172pt and
         // it comes out of the transcript, which just slides out of view.
