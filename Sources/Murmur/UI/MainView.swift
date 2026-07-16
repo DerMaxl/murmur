@@ -56,7 +56,13 @@ struct MainView: View {
                 }
             }
         }
-        .padding(Self.panelGap)
+        // Sides and bottom get the panel gap; the top does not, because the title bar's
+        // safe-area inset already holds the panels clear of the traffic lights. Adding the
+        // gap on top of that inset left an oversized band above the panels, which looked
+        // lopsided once the title-bar divider was gone. Without it the panels tuck up just
+        // under the traffic lights. (In full screen there's no title bar and so no inset,
+        // so the panels sit at the very top, matching the sides.)
+        .padding([.horizontal, .bottom], Self.panelGap)
         // The page the panels sit on. Deliberately darker than the panels themselves, so
         // they read as floating rather than as regions of one flat surface. It ignores the
         // safe area so it paints behind the title bar too (the window is
