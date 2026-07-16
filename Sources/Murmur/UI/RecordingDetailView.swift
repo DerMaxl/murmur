@@ -189,7 +189,12 @@ private struct FlowLayout: Layout {
             rowHeight = max(rowHeight, size.height)
             widest = max(widest, x - spacing)
         }
-        return CGSize(width: min(widest, maxWidth), height: y + rowHeight)
+        // Report the *proposed* width, not the widest row. Reporting the narrower row
+        // width means placeSubviews then wraps against a slightly tighter bound than we
+        // measured against, so an exactly-fitting last chip can spill to another row that
+        // the measured height never accounted for, and whatever follows (the Divider) is
+        // drawn across it.
+        return CGSize(width: maxWidth.isFinite ? maxWidth : widest, height: y + rowHeight)
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
