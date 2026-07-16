@@ -21,26 +21,34 @@ func smooth(_ pts: [(CGFloat,CGFloat)], samples: Int = 40) -> [(CGFloat,CGFloat)
 func render(_ S: CGFloat) -> NSBitmapImageRep {
     let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(S), pixelsHigh: Int(S), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
     let ctx = NSGraphicsContext(bitmapImageRep: rep)!.cgContext
+    // Sit inside the standard macOS icon grid instead of filling the whole tile: the
+    // rounded body spans ~824/1024 of the canvas with a ~10% transparent margin all
+    // round, matching Apple's icons so it reads the same size as its Dock neighbours.
+    // (Full-bleed made it render ~20% larger than everything else.) Everything below
+    // draws into that inset body B.
+    let inset = S * 0.09765
+    let B = S - inset * 2
+    ctx.translateBy(x: inset, y: inset)
     // background squircle + gradient
     ctx.saveGState()
-    ctx.addPath(CGPath(roundedRect: CGRect(x:0,y:0,width:S,height:S), cornerWidth: S*0.2237, cornerHeight: S*0.2237, transform: nil))
+    ctx.addPath(CGPath(roundedRect: CGRect(x:0,y:0,width:B,height:B), cornerWidth: B*0.2237, cornerHeight: B*0.2237, transform: nil))
     ctx.clip()
     let bgGrad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors:[DTOP,DBOT] as CFArray, locations:[0,1])!
-    ctx.drawLinearGradient(bgGrad, start: CGPoint(x:0,y:S), end: CGPoint(x:0,y:0), options: [])
+    ctx.drawLinearGradient(bgGrad, start: CGPoint(x:0,y:B), end: CGPoint(x:0,y:0), options: [])
     // glow (centered on the wave)
     let gc = C(99,102,241,0.20)
     let gGrad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors:[gc,gc.copy(alpha:0)!] as CFArray, locations:[0,1])!
-    ctx.drawRadialGradient(gGrad, startCenter: CGPoint(x:S/2,y:S*0.47), startRadius:0, endCenter: CGPoint(x:S/2,y:S*0.47), endRadius:S*0.55, options:[])
+    ctx.drawRadialGradient(gGrad, startCenter: CGPoint(x:B/2,y:B*0.47), startRadius:0, endCenter: CGPoint(x:B/2,y:B*0.47), endRadius:B*0.55, options:[])
 
     // wave-M, lowered for balance
     let pts:[(CGFloat,CGFloat)] = [ (0.06,0.54),(0.19,0.34),(0.33,0.70),(0.50,0.485),(0.67,0.70),(0.81,0.34),(0.94,0.54) ]
     let sm = smooth(pts)
     let path = CGMutablePath()
-    for (i,p) in sm.enumerated(){ let pt=CGPoint(x:p.0*S,y:p.1*S); if i==0 { path.move(to:pt) } else { path.addLine(to:pt) } }
-    ctx.addPath(path); ctx.setLineWidth(S*0.10); ctx.setLineCap(.round); ctx.setLineJoin(.round)
+    for (i,p) in sm.enumerated(){ let pt=CGPoint(x:p.0*B,y:p.1*B); if i==0 { path.move(to:pt) } else { path.addLine(to:pt) } }
+    ctx.addPath(path); ctx.setLineWidth(B*0.10); ctx.setLineCap(.round); ctx.setLineJoin(.round)
     ctx.replacePathWithStrokedPath(); ctx.clip()
     let wGrad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors:[TEAL,INDIGO] as CFArray, locations:[0,1])!
-    ctx.drawLinearGradient(wGrad, start: CGPoint(x:S*0.08,y:0), end: CGPoint(x:S*0.92,y:0), options:[])
+    ctx.drawLinearGradient(wGrad, start: CGPoint(x:B*0.08,y:0), end: CGPoint(x:B*0.92,y:0), options:[])
     ctx.restoreGState()
     return rep
 }
