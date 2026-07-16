@@ -12,19 +12,27 @@ struct RecentlyDeletedView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // "Empty" lives here in the content, not the window toolbar: a `.toolbar` only
-            // appears on this tab, which changed the title bar height between tabs and
-            // shifted the traffic lights. A fixed in-content spot avoids that.
+            // A header row mirroring History's "N shown / Delete Shown" bar: the item count
+            // on the left, the destructive Empty on the right, a divider beneath. That grounds
+            // the button as part of a header rather than a lone control floating in an empty
+            // strip. Kept in the content, not a `.toolbar`: a toolbar only appears on this tab,
+            // which changed the title-bar height between tabs and shifted the traffic lights.
+            // A fixed in-content spot avoids that. (The 30-day note lives in the list footer,
+            // where it reads per-item; a count next to it up here implied a single batch purge.)
             if !model.deletedRecordings.isEmpty {
                 HStack {
+                    Text("\(model.deletedRecordings.count) item\(model.deletedRecordings.count == 1 ? "" : "s")")
+                        .scaledFont(11).foregroundStyle(.secondary)
                     Spacer()
                     Button(role: .destructive) { confirmingEmpty = true } label: {
                         Label("Empty", systemImage: "trash.slash")
                     }
                     .buttonStyle(.borderless)
+                    .scaledFont(11)
                 }
                 .padding(.horizontal, 16 * scale)
                 .padding(.vertical, 8 * scale)
+                Divider()
             }
 
             if model.deletedRecordings.isEmpty {
