@@ -51,6 +51,10 @@ final class MainWindowController: NSObject, NSWindowDelegate {
             // the top rather than a distinct band with a hairline under it.
             win.titlebarAppearsTransparent = true
             win.titlebarSeparatorStyle = .none
+            // Match the page the content's panels float on (MainView), so the title-bar
+            // strip is the same colour as the background behind them and the top of the
+            // window reads as one flat bar rather than a separate shade.
+            win.backgroundColor = .underPageBackgroundColor
             win.isReleasedWhenClosed = false
             win.delegate = self
             win.setContentSize(NSSize(width: 1000, height: 620))

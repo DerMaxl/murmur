@@ -17,13 +17,18 @@ struct MainView: View {
     /// ~420pt from about here up.
     private static let labelsBreakpoint: CGFloat = 1000
 
+    /// Corner radius and gap of the floating panels.
+    private static let panelRadius: CGFloat = 10
+    private static let panelGap: CGFloat = 8
+
     var body: some View {
-        // A NavigationSplitView whose sidebar column is pinned with a *single* fixed
-        // width. The earlier hand-rolled HStack existed because the split view's divider
-        // stayed draggable, so the sidebar could be widened until the window ran off the
-        // left of the screen; that was with a min/ideal/max range, which SwiftUI treats as
-        // resizable. A lone `navigationSplitViewColumnWidth(_:)` makes the column fixed,
-        // so there's nothing to drag.
+        // Two rounded panels floating on the window's background, rather than columns
+        // butted together. A NavigationSplitView can't do this: it draws its columns
+        // adjacent with a divider between them and paints their materials itself, so
+        // there is nowhere for a gap to go. It also isn't buying anything here any more,
+        // the rail is a fixed width (so, as with the original hand-rolled layout, there's
+        // no divider to drag off screen) and the label toggle is our own state rather than
+        // its column collapsing. The gap between the panels replaces the divider outright.
         //
         // The sidebar defaults to an icon-only rail. At ~56pt instead of 232 even a
         // half-screen window can spare it, so the sections stay reachable at every size
@@ -34,17 +39,25 @@ struct MainView: View {
         // Recently Deleted) but an inline one for the Form/VStack tabs, and won't
         // reliably let us unify them. The sidebar already shows the selected section,
         // so hiding the redundant title makes every tab's title bar identical.
-        NavigationSplitView {
-            sidebar
-                .navigationSplitViewColumnWidth(
-                    model.sidebarShowsLabels ? Self.expandedWidth : Self.railWidth)
-        } detail: {
-            NavigationStack {
-                detail
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+        HStack(spacing: Self.panelGap) {
+            panel {
+                sidebar
+                    .frame(width: model.sidebarShowsLabels
+                           ? Self.expandedWidth : Self.railWidth)
+            }
+            panel {
+                NavigationStack {
+                    detail
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
-        .navigationSplitViewStyle(.balanced)
+        .padding(Self.panelGap)
+        // The page the panels sit on. Deliberately darker than the panels themselves, so
+        // they read as floating rather than as regions of one flat surface. The window's
+        // background is set to match (MainWindowController), so the title-bar strip above
+        // is the same colour and the whole thing looks like one page.
+        .background(Color(nsColor: .underPageBackgroundColor))
         // Track whether there's room for labels. Resizing down to half the screen has to
         // drop the sidebar back to the rail on its own, or the labels keep their 232pt and
         // it comes out of the transcript, which just slides out of view.
@@ -61,6 +74,14 @@ struct MainView: View {
         .environment(\.fontScale, model.fontScale)
     }
 
+    /// Wraps content as one of the window's floating panels: its own surface, rounded,
+    /// and clipped so a List inside can't square the corners back off.
+    private func panel<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: Self.panelRadius, style: .continuous))
+    }
+
     private var sidebar: some View {
         List(selection: $model.tab) {
             item(.history, "History", "clock.arrow.circlepath")
@@ -70,6 +91,8 @@ struct MainView: View {
             item(.settings, "Settings", "gearshape")
         }
         .listStyle(.sidebar)
+        // Drop the list's own backdrop so the panel's surface shows through instead.
+        .scrollContentBackground(.hidden)
     }
 
     /// One section row: just the icon while collapsed to the rail, icon + label (and the
