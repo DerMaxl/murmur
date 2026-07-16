@@ -45,6 +45,9 @@ struct RecentlyDeletedView: View {
                     }
                 }
                 .listStyle(.inset)
+                // Drop the list's own backdrop so it sits on the panel surface like the
+                // rest of the app, instead of a distinct (cooler-toned) inset background.
+                .scrollContentBackground(.hidden)
             }
         }
         // Cap the content width and center it, so rows don't stretch edge-to-edge on a
