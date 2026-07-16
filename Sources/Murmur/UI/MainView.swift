@@ -7,10 +7,14 @@ import SwiftUI
 struct MainView: View {
     @Bindable var model: AppModel
 
+    /// The row the pointer is over, for a hover wash (hand-built rows don't inherit the
+    /// system list's hover state).
+    @State private var hoveredTab: AppModel.Tab?
+
     /// Sidebar widths: a narrow icon-only rail by default, or wide enough for the labels
     /// when expanded (⌃⌘S). Both are single fixed values, see the column note below.
     private static let railWidth: CGFloat = 56
-    private static let expandedWidth: CGFloat = 232
+    private static let expandedWidth: CGFloat = 184
 
     /// Under this window width the sidebar stays a rail whatever the preference says:
     /// labels (232) plus the recordings list (340) only leave the transcript a readable
@@ -83,50 +87,63 @@ struct MainView: View {
     }
 
     private var sidebar: some View {
-        List(selection: $model.tab) {
-            item(.history, "History", "clock.arrow.circlepath")
-            item(.importFiles, "Import a file", "square.and.arrow.down")
-            item(.recentlyDeleted, "Recently Deleted", "trash",
-                 count: model.deletedRecordings.count)
-            item(.settings, "Settings", "gearshape")
+        // Hand-built rows rather than a List(selection:): a sidebar List paints its
+        // selection in the *system* accent (blue) and ignores .tint, so this is the only
+        // way to give the selected row the brand accent. Short one-word labels ("Import",
+        // "Deleted"), since each section's icon and pane already make it clear and it lets
+        // the expanded sidebar be meaningfully narrower.
+        VStack(spacing: 2) {
+            navRow(.history, "History", "clock.arrow.circlepath")
+            navRow(.importFiles, "Import", "square.and.arrow.down")
+            navRow(.recentlyDeleted, "Deleted", "trash",
+                   count: model.deletedRecordings.count)
+            navRow(.settings, "Settings", "gearshape")
+            Spacer(minLength: 0)
         }
-        .listStyle(.sidebar)
-        // Drop the list's own backdrop so the panel's surface shows through instead.
-        .scrollContentBackground(.hidden)
+        .padding(8)
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
-    /// One section row: just the icon while collapsed to the rail, icon + label (and the
-    /// Recently Deleted count) once expanded. The rail keeps the name in a tooltip, since
-    /// there's no room to print it.
-    @ViewBuilder
-    private func item(_ tab: AppModel.Tab, _ title: String,
-                      _ symbol: String, count: Int = 0) -> some View {
-        if model.sidebarShowsLabels {
-            Label {
-                HStack(spacing: 0) {
-                    // Priority so the label keeps its full width (even bold, when selected)
-                    // and never truncates to "Recently Delet…" to make room for the count.
-                    Text(title).layoutPriority(1)
+    /// One section row: icon only on the rail, icon + label (+ the Deleted count) once
+    /// expanded. Selected fills with the brand accent; hovering gets a faint wash.
+    private func navRow(_ tab: AppModel.Tab, _ title: String,
+                        _ symbol: String, count: Int = 0) -> some View {
+        let selected = model.tab == tab
+        let showLabels = model.sidebarShowsLabels
+        return Button {
+            model.tab = tab
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: symbol).frame(width: 20)
+                if showLabels {
+                    Text(title).lineLimit(1)
+                    Spacer(minLength: 6)
                     if count > 0 {
-                        Spacer(minLength: 8)
-                        // `.secondary` derives from the row's foreground, so it stays muted
-                        // when unselected and legible (light) on the selected blue row.
                         Text(count, format: .number)
                             .font(.system(size: 11).monospacedDigit())
-                            .foregroundStyle(.secondary)
+                            .opacity(0.7)
                     }
                 }
-            } icon: {
-                Image(systemName: symbol)
             }
-            .tag(tab)
-        } else {
-            Image(systemName: symbol)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .help(count > 0 ? "\(title) (\(count.formatted()))" : title)
-                .accessibilityLabel(title)
-                .tag(tab)
+            .font(.system(size: 13, weight: selected ? .semibold : .regular))
+            .foregroundStyle(selected ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+            .frame(maxWidth: .infinity, alignment: showLabels ? .leading : .center)
+            .padding(.vertical, 6)
+            .padding(.horizontal, showLabels ? 8 : 0)
+            .background {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(selected ? AnyShapeStyle(Brand.accent)
+                          : hoveredTab == tab ? AnyShapeStyle(Color.primary.opacity(0.08))
+                          : AnyShapeStyle(Color.clear))
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
+        .buttonStyle(.plain)
+        .onHover { inside in
+            if inside { hoveredTab = tab } else if hoveredTab == tab { hoveredTab = nil }
+        }
+        .help(count > 0 ? "\(title) (\(count.formatted()))" : title)
+        .accessibilityLabel(title)
     }
 
     @ViewBuilder
